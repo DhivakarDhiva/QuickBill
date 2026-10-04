@@ -70,6 +70,10 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // Koin Dependency Injection
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
