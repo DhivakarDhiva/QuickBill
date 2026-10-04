@@ -13,6 +13,22 @@ Designed for retail counters, grocery stores, and small businesses needing fast 
 
 ---
 
+## 📱 Application Screenshots
+
+| Cashier Login | POS Billing Terminal | Live Cart & Discounts |
+|:---:|:---:|:---:|
+| ![Login Screen](screenshots/01_login_screen.png) | ![Billing Screen](screenshots/02_billing_screen.png) | ![Cart View](screenshots/04_cart_view.png) |
+
+| Payment & Split Tender | Thermal Receipt & PDF | Navigation Drawer |
+|:---:|:---:|:---:|
+| ![Payment Dialog](screenshots/05_payment_dialog.png) | ![Receipt Dialog](screenshots/06_receipt_dialog.png) | ![Nav Drawer](screenshots/07_nav_drawer.png) |
+
+| Product Inventory Management | Sales History & Refunds | Daily Analytics & Top Items |
+|:---:|:---:|:---:|
+| ![Products Screen](screenshots/08_products_screen.png) | ![Sales History Screen](screenshots/09_sales_history_screen.png) | ![Daily Analytics Screen](screenshots/10_daily_analytics_screen.png) |
+
+---
+
 ## Tech Stack & Architecture Decisions
 
 ```
