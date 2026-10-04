@@ -21,4 +21,7 @@ interface HeldCartDao {
 
     @Delete
     suspend fun deleteHeldCart(cart: HeldCartEntity)
+
+    @Query("DELETE FROM held_carts")
+    suspend fun deleteAllHeldCarts()
 }

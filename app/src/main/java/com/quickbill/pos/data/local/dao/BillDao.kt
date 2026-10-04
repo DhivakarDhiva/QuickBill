@@ -52,4 +52,7 @@ interface BillDao {
 
     @Query("SELECT MAX(id) FROM bills")
     suspend fun getMaxBillId(): Long?
+
+    @Query("DELETE FROM bills")
+    suspend fun deleteAllBills()
 }

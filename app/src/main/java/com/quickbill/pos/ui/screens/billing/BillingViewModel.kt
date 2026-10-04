@@ -218,6 +218,15 @@ class BillingViewModel(
     fun applyDiscount(type: DiscountType, value: Double) {
         val targetItem = _dialogState.value.itemForDiscount
         if (targetItem != null) {
+            val maxItemEligible = targetItem.product.price * targetItem.quantity
+            if (type == DiscountType.PERCENTAGE && (value < 0.0 || value > 100.0)) {
+                _dialogState.value = _dialogState.value.copy(errorMessage = "Item discount percentage must be between 0% and 100%")
+                return
+            }
+            if (type == DiscountType.FLAT && (value < 0.0 || value > maxItemEligible)) {
+                _dialogState.value = _dialogState.value.copy(errorMessage = "Item flat discount cannot exceed item total (₹$maxItemEligible)")
+                return
+            }
             // Per-item discount
             val currentItems = _cartItems.value.toMutableList()
             val index = currentItems.indexOfFirst { it.product.id == targetItem.product.id }
@@ -227,6 +236,15 @@ class BillingViewModel(
             }
             _dialogState.value = _dialogState.value.copy(itemForDiscount = null)
         } else {
+            val subtotal = _cartItems.value.sumOf { it.product.price * it.quantity }
+            if (type == DiscountType.PERCENTAGE && (value < 0.0 || value > 100.0)) {
+                _dialogState.value = _dialogState.value.copy(errorMessage = "Bill discount percentage must be between 0% and 100%")
+                return
+            }
+            if (type == DiscountType.FLAT && (value < 0.0 || value > subtotal)) {
+                _dialogState.value = _dialogState.value.copy(errorMessage = "Bill flat discount cannot exceed eligible subtotal (₹$subtotal)")
+                return
+            }
             // Whole bill discount
             _billDiscount.value = BillDiscount(type, value)
             _dialogState.value = _dialogState.value.copy(isWholeBillDiscountOpen = false)

@@ -127,9 +127,32 @@ class ReportsViewModel(
                     putExtra(Intent.EXTRA_SUBJECT, "QuickBill Sales Report (${report.dateLabel})")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                context.startActivity(Intent.createChooser(intent, "Share Sales Report"))
+                context.startActivity(Intent.createChooser(intent, "Share CSV Report"))
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = "Export failed: ${e.message}")
+                _uiState.value = _uiState.value.copy(errorMessage = "CSV export failed: ${e.message}")
+            }
+        }
+    }
+
+    fun exportToExcel(context: Context) {
+        val report = _uiState.value.reportData ?: return
+        viewModelScope.launch {
+            try {
+                val file = CsvExporter.exportDailyReportToExcel(context, report)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.ms-excel"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "QuickBill Excel Sales Report (${report.dateLabel})")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Open or Share Excel Report"))
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(errorMessage = "Excel export failed: ${e.message}")
             }
         }
     }

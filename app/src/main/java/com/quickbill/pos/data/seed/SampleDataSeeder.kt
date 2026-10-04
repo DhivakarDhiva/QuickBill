@@ -1,18 +1,9 @@
 package com.quickbill.pos.data.seed
 
-import com.quickbill.pos.data.local.dao.BillDao
-import com.quickbill.pos.data.local.dao.BillItemDao
-import com.quickbill.pos.data.local.dao.BillPaymentDao
 import com.quickbill.pos.data.local.dao.ProductDao
 import com.quickbill.pos.data.local.dao.UserDao
-import com.quickbill.pos.data.local.entity.BillEntity
-import com.quickbill.pos.data.local.entity.BillItemEntity
-import com.quickbill.pos.data.local.entity.BillPaymentEntity
 import com.quickbill.pos.data.local.entity.ProductEntity
 import com.quickbill.pos.data.local.entity.UserEntity
-import com.quickbill.pos.data.model.BillStatus
-import com.quickbill.pos.data.model.DiscountType
-import com.quickbill.pos.data.model.PaymentMode
 import com.quickbill.pos.data.model.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,10 +12,7 @@ object SampleDataSeeder {
 
     suspend fun seedInitialDataIfEmpty(
         productDao: ProductDao,
-        userDao: UserDao,
-        billDao: BillDao,
-        billItemDao: BillItemDao,
-        billPaymentDao: BillPaymentDao
+        userDao: UserDao
     ) = withContext(Dispatchers.IO) {
         // Seed default users if empty
         if (userDao.getUserCount() == 0) {
@@ -239,138 +227,6 @@ object SampleDataSeeder {
                 )
             )
             productDao.insertProducts(sampleProducts)
-        }
-
-        // Seed a few past bills if empty so history and daily report look rich immediately
-        if (billDao.getBillsCount() == 0) {
-            val now = System.currentTimeMillis()
-            val hourMs = 3600_000L
-
-            // Bill 1: Completed cash bill
-            val bill1 = BillEntity(
-                billNumber = "QB-20261001-0001",
-                cashierId = 2,
-                cashierName = "Rahul Sharma",
-                customerName = "Anand Kumar",
-                customerPhone = "9876543210",
-                subtotal = 385.0,
-                discountType = DiscountType.PERCENTAGE,
-                discountValue = 5.0,
-                discountAmount = 19.25,
-                cgstAmount = 12.50,
-                sgstAmount = 12.50,
-                taxAmount = 25.00,
-                grandTotal = 390.75,
-                paymentMode = PaymentMode.CASH,
-                cashTendered = 500.0,
-                changeDue = 109.25,
-                status = BillStatus.COMPLETED,
-                timestamp = now - (3 * hourMs)
-            )
-            val bill1Id = billDao.insertBill(bill1)
-            billItemDao.insertBillItems(
-                listOf(
-                    BillItemEntity(
-                        billId = bill1Id,
-                        productId = 1,
-                        productName = "Basmati Rice (1kg)",
-                        sku = "890103000101",
-                        unitPrice = 120.0,
-                        quantity = 2,
-                        taxRate = 5.0,
-                        taxableAmount = 240.0,
-                        cgstAmount = 6.0,
-                        sgstAmount = 6.0,
-                        taxAmount = 12.0,
-                        lineTotal = 252.0
-                    ),
-                    BillItemEntity(
-                        billId = bill1Id,
-                        productId = 5,
-                        productName = "Refined Sunflower Oil (1L)",
-                        sku = "890103000105",
-                        unitPrice = 145.0,
-                        quantity = 1,
-                        taxRate = 5.0,
-                        taxableAmount = 145.0,
-                        cgstAmount = 3.63,
-                        sgstAmount = 3.63,
-                        taxAmount = 7.25,
-                        lineTotal = 152.25
-                    )
-                )
-            )
-            billPaymentDao.insertPayments(
-                listOf(
-                    BillPaymentEntity(
-                        billId = bill1Id,
-                        mode = PaymentMode.CASH,
-                        amount = 390.75,
-                        referenceNote = "Tendered: ₹500.00, Change: ₹109.25"
-                    )
-                )
-            )
-
-            // Bill 2: Split payment bill (Cash + UPI)
-            val bill2 = BillEntity(
-                billNumber = "QB-20261001-0002",
-                cashierId = 2,
-                cashierName = "Rahul Sharma",
-                customerName = "Sunita Verma",
-                customerPhone = "9123456780",
-                subtotal = 595.0,
-                discountType = DiscountType.FLAT,
-                discountValue = 50.0,
-                discountAmount = 50.0,
-                cgstAmount = 28.50,
-                sgstAmount = 28.50,
-                taxAmount = 57.00,
-                grandTotal = 602.00,
-                paymentMode = PaymentMode.SPLIT,
-                cashTendered = 300.0,
-                changeDue = 0.0,
-                status = BillStatus.COMPLETED,
-                timestamp = now - (1 * hourMs)
-            )
-            val bill2Id = billDao.insertBill(bill2)
-            billItemDao.insertBillItems(
-                listOf(
-                    BillItemEntity(
-                        billId = bill2Id,
-                        productId = 6,
-                        productName = "Amul Butter (500g)",
-                        sku = "890103000201",
-                        unitPrice = 275.0,
-                        quantity = 1,
-                        taxRate = 12.0,
-                        taxableAmount = 275.0,
-                        cgstAmount = 16.5,
-                        sgstAmount = 16.5,
-                        taxAmount = 33.0,
-                        lineTotal = 308.0
-                    ),
-                    BillItemEntity(
-                        billId = bill2Id,
-                        productId = 10,
-                        productName = "Roasted Coffee Beans (250g)",
-                        sku = "890103000301",
-                        unitPrice = 320.0,
-                        quantity = 1,
-                        taxRate = 5.0,
-                        taxableAmount = 320.0,
-                        cgstAmount = 8.0,
-                        sgstAmount = 8.0,
-                        taxAmount = 16.0,
-                        lineTotal = 336.0
-                    )
-                )
-            )
-            billPaymentDao.insertPayments(
-                listOf(
-                    BillPaymentEntity(billId = bill2Id, mode = PaymentMode.CASH, amount = 300.0, referenceNote = "Cash portion"),
-                    BillPaymentEntity(billId = bill2Id, mode = PaymentMode.UPI, amount = 302.0, referenceNote = "UPI ID: sunita@upi")
-                )
-            )
         }
     }
 }

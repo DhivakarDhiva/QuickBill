@@ -50,15 +50,32 @@ class ReportRepository(
         var completedBillsCount = 0
         var refundedBillsCount = 0
         var refundedAmount = 0.0
+        var grossSales = 0.0
 
         var cashSales = 0.0
         var cardSales = 0.0
         var upiSales = 0.0
+        var totalTax = 0.0
+        var totalDiscount = 0.0
 
         for (bill in bills) {
             if (bill.status == BillStatus.COMPLETED) {
                 completedBillsCount++
                 totalSales += bill.grandTotal
+                grossSales += bill.subtotal
+                totalTax += bill.taxAmount
+
+                var effectiveDiscount = bill.discountAmount
+                val billItems = billItemDao.getItemsForBill(bill.id)
+                val itemDiscountSum = billItems.sumOf { it.itemDiscountAmount }
+                if (effectiveDiscount <= 0.0 && itemDiscountSum > 0.0) {
+                    effectiveDiscount = itemDiscountSum
+                } else if (bill.discountType != com.quickbill.pos.data.model.DiscountType.NONE && bill.discountAmount > 0.0 && itemDiscountSum > 0.0) {
+                    if (bill.discountAmount < (itemDiscountSum + bill.discountAmount - 0.001)) {
+                        effectiveDiscount = bill.discountAmount + itemDiscountSum
+                    }
+                }
+                totalDiscount += effectiveDiscount
 
                 // Tally payment modes
                 val payments = billPaymentDao.getPaymentsForBill(bill.id)
@@ -87,9 +104,12 @@ class ReportRepository(
         }
 
         val topSelling = billItemDao.getTopSellingItems(startTime, endTime, 5)
+        val allSold = billItemDao.getAllSellingItems(startTime, endTime)
+        val itemsSold = billItemDao.getTotalItemsSold(startTime, endTime)
 
         DailyReportData(
             dateLabel = label,
+            grossSales = BillingCalculator.round2(grossSales),
             totalSales = BillingCalculator.round2(totalSales),
             totalBillsCount = totalBillsCount,
             completedBillsCount = completedBillsCount,
@@ -98,7 +118,32 @@ class ReportRepository(
             cashSales = BillingCalculator.round2(cashSales),
             cardSales = BillingCalculator.round2(cardSales),
             upiSales = BillingCalculator.round2(upiSales),
-            topSellingItems = topSelling
+            topSellingItems = topSelling,
+            totalItemsSold = itemsSold,
+            allSoldItems = allSold,
+            totalTax = BillingCalculator.round2(totalTax),
+            totalDiscount = BillingCalculator.round2(totalDiscount)
         )
+    }
+
+    suspend fun getTodayBills(timeInMillis: Long = System.currentTimeMillis()): List<com.quickbill.pos.data.local.entity.BillEntity> = withContext(Dispatchers.IO) {
+        val calendar = Calendar.getInstance().apply {
+            this.timeInMillis = timeInMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startTime = calendar.timeInMillis
+        calendar.set(Calendar.HOUR_OF_DAY, 23)
+        calendar.set(Calendar.MINUTE, 59)
+        calendar.set(Calendar.SECOND, 59)
+        calendar.set(Calendar.MILLISECOND, 999)
+        val endTime = calendar.timeInMillis
+        billDao.getBillsByDateRangeSync(startTime, endTime)
+    }
+
+    suspend fun getItemsForBill(billId: Long): List<com.quickbill.pos.data.local.entity.BillItemEntity> = withContext(Dispatchers.IO) {
+        billItemDao.getItemsForBill(billId)
     }
 }

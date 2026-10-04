@@ -2,6 +2,7 @@ package com.quickbill.pos.ui.navigation
 
 sealed class Screen(val route: String, val title: String) {
     object Login : Screen("login", "Cashier Login")
+    object Dashboard : Screen("dashboard", "Dashboard")
     object Billing : Screen("billing", "QuickBill POS")
     object Products : Screen("products", "Product Catalog")
     object SalesHistory : Screen("history", "Sales & Receipts")

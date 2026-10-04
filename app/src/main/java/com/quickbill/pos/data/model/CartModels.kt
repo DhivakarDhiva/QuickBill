@@ -61,6 +61,7 @@ data class BillWithDetails(
 
 data class DailyReportData(
     val dateLabel: String,
+    val grossSales: Double = 0.0,
     val totalSales: Double,
     val totalBillsCount: Int,
     val completedBillsCount: Int,
@@ -69,5 +70,9 @@ data class DailyReportData(
     val cashSales: Double,
     val cardSales: Double,
     val upiSales: Double,
-    val topSellingItems: List<com.quickbill.pos.data.local.dao.TopSellingItemResult>
+    val topSellingItems: List<com.quickbill.pos.data.local.dao.TopSellingItemResult>,
+    val totalItemsSold: Int = 0,
+    val allSoldItems: List<com.quickbill.pos.data.local.dao.TopSellingItemResult> = emptyList(),
+    val totalTax: Double = 0.0,
+    val totalDiscount: Double = 0.0
 )

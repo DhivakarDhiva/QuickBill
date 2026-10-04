@@ -16,6 +16,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class ProductSortOption(val label: String) {
+    DEFAULT("Default"),
+    NAME_ASC("Name: A to Z"),
+    NAME_DESC("Name: Z to A"),
+    PRICE_LOW_HIGH("Price: Low to High"),
+    PRICE_HIGH_LOW("Price: High to Low"),
+    STOCK_LOW_HIGH("Stock: Low to High"),
+    STOCK_HIGH_LOW("Stock: High to Low")
+}
+
 data class ProductFormData(
     val id: Long = 0,
     val name: String = "",
@@ -37,22 +47,48 @@ class ProductsViewModel(
     private val _selectedCategory = MutableStateFlow("")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
 
+    private val _filterLowStock = MutableStateFlow(false)
+    val filterLowStock: StateFlow<Boolean> = _filterLowStock.asStateFlow()
+
+    private val _sortOption = MutableStateFlow(ProductSortOption.DEFAULT)
+    val sortOption: StateFlow<ProductSortOption> = _sortOption.asStateFlow()
+
     val categories: StateFlow<List<String>> = productRepository.categories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val products: StateFlow<List<ProductEntity>> = combine(
         productRepository.allProducts,
         _searchQuery,
-        _selectedCategory
-    ) { all, query, cat ->
-        all.filter { p ->
+        _selectedCategory,
+        _filterLowStock,
+        _sortOption
+    ) { all, query, cat, lowStockOnly, sort ->
+        val filtered = all.filter { p ->
             val matchesQuery = query.isBlank() ||
                     p.name.contains(query, ignoreCase = true) ||
                     p.sku.contains(query, ignoreCase = true)
             val matchesCat = cat.isBlank() || p.category.equals(cat, ignoreCase = true)
-            matchesQuery && matchesCat
+            val matchesLowStock = !lowStockOnly || (p.stockQuantity <= p.minStockAlert)
+            matchesQuery && matchesCat && matchesLowStock
+        }
+        when (sort) {
+            ProductSortOption.DEFAULT -> filtered.sortedWith(compareBy<ProductEntity> { it.name.lowercase() }.thenBy { it.id })
+            ProductSortOption.NAME_ASC -> filtered.sortedWith(compareBy<ProductEntity> { it.name.lowercase() }.thenBy { it.sku })
+            ProductSortOption.NAME_DESC -> filtered.sortedWith(compareByDescending<ProductEntity> { it.name.lowercase() }.thenBy { it.sku })
+            ProductSortOption.PRICE_LOW_HIGH -> filtered.sortedWith(compareBy<ProductEntity> { it.price }.thenBy { it.name.lowercase() })
+            ProductSortOption.PRICE_HIGH_LOW -> filtered.sortedWith(compareByDescending<ProductEntity> { it.price }.thenBy { it.name.lowercase() })
+            ProductSortOption.STOCK_LOW_HIGH -> filtered.sortedWith(compareBy<ProductEntity> { it.stockQuantity }.thenBy { it.name.lowercase() })
+            ProductSortOption.STOCK_HIGH_LOW -> filtered.sortedWith(compareByDescending<ProductEntity> { it.stockQuantity }.thenBy { it.name.lowercase() })
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setSortOption(option: ProductSortOption) {
+        _sortOption.value = option
+    }
+
+    fun setFilterLowStock(enabled: Boolean) {
+        _filterLowStock.value = enabled
+    }
 
     private val _editingProduct = MutableStateFlow<ProductFormData?>(null)
     val editingProduct: StateFlow<ProductFormData?> = _editingProduct.asStateFlow()
@@ -62,6 +98,13 @@ class ProductsViewModel(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    private val _duplicateSkuError = MutableStateFlow<String?>(null)
+    val duplicateSkuError: StateFlow<String?> = _duplicateSkuError.asStateFlow()
+
+    fun dismissDuplicateSkuError() {
+        _duplicateSkuError.value = null
+    }
 
     fun onSearchChanged(query: String) {
         _searchQuery.value = query
@@ -111,10 +154,18 @@ class ProductsViewModel(
 
         viewModelScope.launch {
             try {
+                val trimmedSku = formData.sku.trim()
+                // Validate duplicate SKU
+                val existing = productRepository.getProductBySku(trimmedSku)
+                if (existing != null && existing.id != formData.id) {
+                    _duplicateSkuError.value = "A product with SKU '$trimmedSku' already exists ('${existing.name}'). Each product must have a unique SKU."
+                    return@launch
+                }
+
                 val entity = ProductEntity(
                     id = formData.id,
                     name = formData.name.trim(),
-                    sku = formData.sku.trim(),
+                    sku = trimmedSku,
                     category = formData.category.trim(),
                     price = price,
                     taxRate = formData.taxRate,
@@ -175,6 +226,29 @@ class ProductsViewModel(
                 context.startActivity(Intent.createChooser(intent, "Share Inventory CSV"))
             } catch (e: Exception) {
                 _message.value = "CSV Export failed: ${e.message}"
+            }
+        }
+    }
+
+    fun exportToExcel(context: Context) {
+        viewModelScope.launch {
+            try {
+                val currentProducts = products.value
+                val file = CsvExporter.exportProductsToExcel(context, currentProducts)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.ms-excel"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "QuickBill Inventory Catalog")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Open or Share Excel Catalog"))
+            } catch (e: Exception) {
+                _message.value = "Excel Export failed: ${e.message}"
             }
         }
     }

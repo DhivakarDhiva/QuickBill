@@ -13,4 +13,7 @@ interface BillPaymentDao {
 
     @Query("SELECT * FROM bill_payments WHERE billId = :billId")
     suspend fun getPaymentsForBill(billId: Long): List<BillPaymentEntity>
+
+    @Query("DELETE FROM bill_payments")
+    suspend fun deleteAllPayments()
 }

@@ -3,6 +3,7 @@ package com.quickbill.pos.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.quickbill.pos.data.local.entity.UserEntity
+import com.quickbill.pos.data.model.UserRole
 import com.quickbill.pos.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,7 +13,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class LoginUiState(
-    val enteredPin: String = "",
+    val username: String = "admin",
+    val password: String = "1234",
+    val selectedRole: UserRole = UserRole.ADMIN,
+    val isPasswordVisible: Boolean = false,
     val error: String? = null,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false
@@ -28,25 +32,27 @@ class LoginViewModel(
     val activeUsers: StateFlow<List<UserEntity>> = authRepository.getAllActiveUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun onDigitEntered(digit: String) {
-        if (_uiState.value.enteredPin.length < 4) {
-            val newPin = _uiState.value.enteredPin + digit
-            _uiState.value = _uiState.value.copy(enteredPin = newPin, error = null)
-            if (newPin.length == 4) {
-                attemptLogin(newPin)
-            }
-        }
+    fun onUsernameChange(username: String) {
+        _uiState.value = _uiState.value.copy(username = username, error = null)
     }
 
-    fun onBackspace() {
-        val current = _uiState.value.enteredPin
-        if (current.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(enteredPin = current.dropLast(1), error = null)
-        }
+    fun onPasswordChange(password: String) {
+        _uiState.value = _uiState.value.copy(password = password, error = null)
     }
 
-    fun onClear() {
-        _uiState.value = _uiState.value.copy(enteredPin = "", error = null)
+    fun togglePasswordVisibility() {
+        _uiState.value = _uiState.value.copy(isPasswordVisible = !_uiState.value.isPasswordVisible)
+    }
+
+    fun onRoleSelected(role: UserRole) {
+        val defaultUser = if (role == UserRole.ADMIN) "admin" else "cashier1"
+        val defaultPass = if (role == UserRole.ADMIN) "1234" else "0000"
+        _uiState.value = _uiState.value.copy(
+            selectedRole = role,
+            username = defaultUser,
+            password = defaultPass,
+            error = null
+        )
     }
 
     fun quickSelectUser(user: UserEntity) {
@@ -54,18 +60,38 @@ class LoginViewModel(
         _uiState.value = _uiState.value.copy(isSuccess = true, error = null)
     }
 
-    private fun attemptLogin(pin: String) {
+    fun attemptLogin() {
+        val current = _uiState.value
+        val userText = current.username.trim()
+        val passText = current.password.trim()
+
+        if (userText.isEmpty()) {
+            _uiState.value = _uiState.value.copy(error = "Please enter username")
+            return
+        }
+        if (passText.isEmpty()) {
+            _uiState.value = _uiState.value.copy(error = "Please enter password/PIN")
+            return
+        }
+
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            val success = authRepository.loginWithPin(pin)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            // Try username + pin match
+            val success = authRepository.loginWithUsername(userText, passText)
             if (success) {
                 _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
             } else {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    enteredPin = "",
-                    error = "Invalid PIN. Try '1234' for Admin or '0000' for Cashier."
-                )
+                // Also check if PIN directly matches any user of selected role
+                val pinSuccess = authRepository.loginWithPin(passText)
+                if (pinSuccess) {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "Invalid credentials. Use 'admin' / '1234' or 'cashier1' / '0000'."
+                    )
+                }
             }
         }
     }

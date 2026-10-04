@@ -1,7 +1,9 @@
 package com.quickbill.pos.ui.screens.billing
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,15 +14,19 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -30,10 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.quickbill.pos.data.local.entity.ProductEntity
 import com.quickbill.pos.data.model.CartItem
 import com.quickbill.pos.data.model.DiscountType
-import com.quickbill.pos.ui.components.BarcodeScannerModal
-import com.quickbill.pos.ui.components.DiscountDialog
-import com.quickbill.pos.ui.components.PaymentDialog
-import com.quickbill.pos.ui.components.ReceiptDialog
+import com.quickbill.pos.ui.components.*
 import com.quickbill.pos.ui.theme.*
 import java.util.Locale
 
@@ -41,18 +44,23 @@ import java.util.Locale
 @Composable
 fun BillingScreen(
     viewModel: BillingViewModel,
-    onNavigateToHeldCarts: () -> Unit
+    onNavigateToHeldCarts: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val products by viewModel.filteredProducts.collectAsState()
     val categories by viewModel.allCategories.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     val configuration = LocalConfiguration.current
-    val isWideScreen = configuration.screenWidthDp >= 720
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isWideScreen = configuration.screenWidthDp >= 600 || isLandscape
 
+    // Mobile sheet or screen state for Cart (Screen 6)
+    val cartSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isCartSheetOpen by remember { mutableStateOf(false) }
     var showHoldCartDialog by remember { mutableStateOf(false) }
     var holdNote by remember { mutableStateOf("") }
-    var mobileSelectedTab by remember { mutableStateOf(0) } // 0: Catalog, 1: Cart
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -71,79 +79,137 @@ fun BillingScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            if (!isWideScreen && mobileSelectedTab == 0 && uiState.cartItems.isNotEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = { mobileSelectedTab = 1 },
-                    containerColor = PrimaryGreen,
-                    contentColor = Color.White,
-                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) },
-                    text = {
-                        Text(
-                            text = "${uiState.cartSummary.totalItemCount} Items • ₹${String.format(Locale.US, "%.2f", uiState.cartSummary.grandTotal)}",
-                            fontWeight = FontWeight.Bold
-                        )
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = if (isWideScreen || isLandscape) 20.dp else 120.dp)
+            )
+        },
+        bottomBar = {
+            // Screen 5 Mobile Bottom Quick-Cart Bar: Item count, Grand Total, and "View Cart / Proceed"
+            if (!isWideScreen && uiState.cartItems.isNotEmpty()) {
+                Surface(
+                    color = SurfaceWhite,
+                    shadowElevation = 10.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, OutlineLight),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 76.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = EmeraldContainer,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "${uiState.cartSummary.totalItemCount}",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = EmeraldPrimary
+                                            )
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Current Bill",
+                                    style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondaryLight)
+                                )
+                            }
+                            Text(
+                                text = "₹ ${String.format(Locale.US, "%.2f", uiState.cartSummary.grandTotal)}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TextPrimaryLight
+                                )
+                            )
+                        }
+
+                        Button(
+                            onClick = { isCartSheetOpen = true },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+                        ) {
+                            Text(
+                                text = "View Cart",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
                     }
-                )
+                }
             }
         }
     ) { paddingValues ->
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
+                .background(WarmBackgroundLight)
                 .padding(paddingValues)
         ) {
             if (isWideScreen) {
-                // Wide Screen / Tablet Layout: Dual Pane
+                // Dual Pane Layout (Catalog on Left 60%, Current Bill on Right 40%)
                 Row(modifier = Modifier.fillMaxSize()) {
-                    // Left Pane: Catalog & Categories (60% width)
+                    // Left Pane: Catalog
                     Column(
                         modifier = Modifier
                             .weight(0.58f)
                             .fillMaxHeight()
-                            .padding(12.dp)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        CatalogHeader(
+                        CatalogSearchAndFilters(
                             searchQuery = uiState.searchQuery,
                             onSearchChange = { viewModel.onSearchQueryChanged(it) },
-                            onScanClick = { viewModel.openBarcodeScanner() }
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        CategoryChips(
+                            onScanClick = { viewModel.openBarcodeScanner() },
                             categories = categories,
                             selectedCategory = uiState.selectedCategory,
                             onSelectCategory = { viewModel.onCategorySelected(it) }
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
                         ProductGrid(
                             products = products,
+                            cartItems = uiState.cartItems,
                             onProductClick = { viewModel.addToCart(it) },
+                            onIncrement = { viewModel.addToCart(it) },
+                            onDecrement = { product ->
+                                viewModel.updateItemQuantity(product.id, -1)
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
 
-                    VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    VerticalDivider(color = OutlineLight)
 
-                    // Right Pane: Active Cart & Totals (42% width)
+                    // Right Pane: Screen 6 Cart with Discounts
                     Column(
                         modifier = Modifier
                             .weight(0.42f)
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(12.dp)
+                            .background(SurfaceWhite)
+                            .padding(14.dp)
                     ) {
-                        CartHeader(
-                            itemCount = uiState.cartSummary.totalItemCount,
+                        CurrentBillHeader(
+                            onHoldClick = { showHoldCartDialog = true },
                             onClearCart = { viewModel.clearCart() },
-                            onHoldCart = { showHoldCartDialog = true }
+                            hasItems = uiState.cartItems.isNotEmpty()
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         CartItemsList(
                             cartItems = uiState.cartItems,
@@ -154,145 +220,156 @@ fun BillingScreen(
                             modifier = Modifier.weight(1f)
                         )
 
-                        CartSummarySection(
+                        CurrentBillSummaryCard(
                             summary = uiState.cartSummary,
-                            onBillDiscountClick = { viewModel.openWholeBillDiscountDialog() },
-                            onCheckoutClick = { viewModel.openPaymentDialog() }
+                            onAddDiscountClick = { viewModel.openWholeBillDiscountDialog() },
+                            onProceedToPay = { viewModel.openPaymentDialog() }
                         )
                     }
                 }
             } else {
-                // Phone Layout: Segmented View (Catalog & Cart tabs)
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Tab Bar
-                    TabRow(
-                        selectedTabIndex = mobileSelectedTab,
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ) {
-                        Tab(
-                            selected = mobileSelectedTab == 0,
-                            onClick = { mobileSelectedTab = 0 },
-                            text = { Text("Product Catalog") },
-                            icon = { Icon(Icons.Default.GridOn, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                        )
-                        Tab(
-                            selected = mobileSelectedTab == 1,
-                            onClick = { mobileSelectedTab = 1 },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Cart")
-                                    if (uiState.cartSummary.totalItemCount > 0) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Badge(containerColor = PrimaryGreen) {
-                                            Text("${uiState.cartSummary.totalItemCount}")
-                                        }
-                                    }
-                                }
-                            },
-                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                        )
-                    }
+                // Mobile Layout: Screen 5 Product Catalog with Instant Add
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CatalogSearchAndFilters(
+                        searchQuery = uiState.searchQuery,
+                        onSearchChange = { viewModel.onSearchQueryChanged(it) },
+                        onScanClick = { viewModel.openBarcodeScanner() },
+                        categories = categories,
+                        selectedCategory = uiState.selectedCategory,
+                        onSelectCategory = { viewModel.onCategorySelected(it) }
+                    )
 
-                    if (mobileSelectedTab == 0) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp)
-                        ) {
-                            CatalogHeader(
-                                searchQuery = uiState.searchQuery,
-                                onSearchChange = { viewModel.onSearchQueryChanged(it) },
-                                onScanClick = { viewModel.openBarcodeScanner() }
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            CategoryChips(
-                                categories = categories,
-                                selectedCategory = uiState.selectedCategory,
-                                onSelectCategory = { viewModel.onCategorySelected(it) }
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            ProductGrid(
-                                products = products,
-                                onProductClick = { viewModel.addToCart(it) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp)
-                        ) {
-                            CartHeader(
-                                itemCount = uiState.cartSummary.totalItemCount,
-                                onClearCart = { viewModel.clearCart() },
-                                onHoldCart = { showHoldCartDialog = true }
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            CartItemsList(
-                                cartItems = uiState.cartItems,
-                                onIncrement = { viewModel.updateItemQuantity(it, 1) },
-                                onDecrement = { viewModel.updateItemQuantity(it, -1) },
-                                onRemove = { viewModel.removeItem(it) },
-                                onDiscountClick = { viewModel.openItemDiscountDialog(it) },
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            CartSummarySection(
-                                summary = uiState.cartSummary,
-                                onBillDiscountClick = { viewModel.openWholeBillDiscountDialog() },
-                                onCheckoutClick = { viewModel.openPaymentDialog() }
-                            )
-                        }
-                    }
+                    ProductGrid(
+                        products = products,
+                        cartItems = uiState.cartItems,
+                        onProductClick = { viewModel.addToCart(it) },
+                        onIncrement = { viewModel.addToCart(it) },
+                        onDecrement = { product ->
+                            viewModel.updateItemQuantity(product.id, -1)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+            }
+        }
+    }
+
+    // =========================================================================
+    // Screen 6: Mobile Bottom Sheet for "Current Bill & Cart with Discounts"
+    // Matches mockup 6 perfectly: Items list with [- 2 +], Add Discount
+    // selector, Subtotal, Discount, Tax, Grand Total, and "Proceed to Pay"
+    // =========================================================================
+    if (isCartSheetOpen && !isWideScreen) {
+        ModalBottomSheet(
+            onDismissRequest = { isCartSheetOpen = false },
+            sheetState = cartSheetState,
+            containerColor = SurfaceWhite,
+            shape = BottomSheetShape,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 10.dp)
+                        .width(44.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(OutlineLight)
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.92f)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                CurrentBillHeader(
+                    onHoldClick = {
+                        isCartSheetOpen = false
+                        showHoldCartDialog = true
+                    },
+                    onClearCart = { viewModel.clearCart() },
+                    hasItems = uiState.cartItems.isNotEmpty()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                CartItemsList(
+                    cartItems = uiState.cartItems,
+                    onIncrement = { viewModel.updateItemQuantity(it, 1) },
+                    onDecrement = { viewModel.updateItemQuantity(it, -1) },
+                    onRemove = { viewModel.removeItem(it) },
+                    onDiscountClick = { viewModel.openItemDiscountDialog(it) },
+                    modifier = Modifier.weight(1f)
+                )
+
+                CurrentBillSummaryCard(
+                    summary = uiState.cartSummary,
+                    onAddDiscountClick = { viewModel.openWholeBillDiscountDialog() },
+                    onProceedToPay = {
+                        isCartSheetOpen = false
+                        viewModel.openPaymentDialog()
+                    }
+                )
             }
         }
     }
 
     // Hold Cart Dialog
     if (showHoldCartDialog) {
-        AlertDialog(
+        QuickBillDialog(
             onDismissRequest = { showHoldCartDialog = false },
-            title = { Text("Park / Hold Order", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Hold this cart to serve another customer. You can resume it anytime.")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = holdNote,
-                        onValueChange = { holdNote = it },
-                        label = { Text("Order Note / Customer Identifier") },
-                        placeholder = { Text("e.g. Customer in Red Shirt") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+            title = "Hold Current Bill"
+        ) {
+            Text(
+                text = "Park this bill to serve another customer quickly. You can resume it anytime.",
+                style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondaryLight)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            QuickBillTextField(
+                value = holdNote,
+                onValueChange = { holdNote = it },
+                label = "Customer or Order Note",
+                placeholder = "e.g. Table 4 / Red Shirt",
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showHoldCartDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(46.dp)
+                ) {
+                    Text("Cancel")
                 }
-            },
-            confirmButton = {
+
                 Button(
                     onClick = {
-                        viewModel.holdCart(holdNote)
+                        viewModel.holdCart(holdNote.ifBlank { "Held Order" })
                         holdNote = ""
                         showHoldCartDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                    modifier = Modifier.weight(1f).height(46.dp)
                 ) {
-                    Text("Hold Order")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showHoldCartDialog = false }) {
-                    Text("Cancel")
+                    Text("Hold Bill", fontWeight = FontWeight.Bold)
                 }
             }
-        )
+        }
     }
 
     // Barcode Scanner Modal
@@ -305,7 +382,7 @@ fun BillingScreen(
         )
     }
 
-    // Discount Dialog (Item or Whole Bill)
+    // Discount Dialog
     if (uiState.isDiscountDialogOpen) {
         val targetItem = uiState.itemForDiscount
         if (targetItem != null) {
@@ -329,8 +406,13 @@ fun BillingScreen(
         }
     }
 
-    // Payment Dialog
-    if (uiState.isPaymentDialogOpen) {
+    // Screen 7: Payment Screen Overlay
+    AnimatedVisibility(
+        visible = uiState.isPaymentDialogOpen,
+        enter = SwiftUiMotion.ModalSlideIn,
+        exit = SwiftUiMotion.ModalSlideOut,
+        modifier = Modifier.fillMaxSize()
+    ) {
         PaymentDialog(
             cartSummary = uiState.cartSummary,
             onDismiss = { viewModel.closePaymentDialog() },
@@ -340,336 +422,198 @@ fun BillingScreen(
         )
     }
 
-    // Receipt Modal
-    uiState.completedBill?.let { billWithDetails ->
-        ReceiptDialog(
-            billWithDetails = billWithDetails,
-            onDismiss = { viewModel.closeReceiptDialog() },
-            onNewSale = { viewModel.closeReceiptDialog() }
-        )
-    }
-}
-
-@Composable
-private fun CatalogHeader(
-    searchQuery: String,
-    onSearchChange: (String) -> Unit,
-    onScanClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // Screen 8: Receipt Screen Overlay
+    AnimatedVisibility(
+        visible = uiState.completedBill != null,
+        enter = SwiftUiMotion.ModalSlideIn,
+        exit = SwiftUiMotion.ModalSlideOut,
+        modifier = Modifier.fillMaxSize()
     ) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChange,
-            placeholder = { Text("Search products by name or SKU...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear")
-                    }
-                }
-            },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        FilledTonalIconButton(
-            onClick = onScanClick,
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.size(52.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.QrCodeScanner,
-                contentDescription = "Scan Barcode",
-                tint = PrimaryGreen
+        uiState.completedBill?.let { billWithDetails ->
+            ReceiptDialog(
+                billWithDetails = billWithDetails,
+                onDismiss = { viewModel.closeReceiptDialog() },
+                onNewSale = { viewModel.closeReceiptDialog() }
             )
         }
     }
 }
 
+// =========================================================================
+// Catalog Header with Search, Barcode Scan, and Category Chips (Screen 5 Mockup)
+// =========================================================================
+
 @Composable
-private fun CategoryChips(
+private fun CatalogSearchAndFilters(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    onScanClick: () -> Unit,
     categories: List<String>,
     selectedCategory: String,
     onSelectCategory: (String) -> Unit
 ) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        item {
-            FilterChip(
-                selected = selectedCategory.isEmpty(),
-                onClick = { onSelectCategory("") },
-                label = { Text("All Products") },
-                shape = RoundedCornerShape(20.dp)
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Search & Scan Bar
+        QuickBillSearchBar(
+            query = searchQuery,
+            onQueryChange = onSearchChange,
+            placeholder = "Search product or scan barcode...",
+            onScanClick = onScanClick
+        )
+
+        // Category Chips: [All] [Beverages] (active) [Snacks] [Main Course]
+        val allCats = remember(categories) {
+            val list = mutableListOf("All")
+            list.addAll(categories.filter { it.isNotBlank() })
+            list
         }
-        items(categories) { category ->
-            FilterChip(
-                selected = selectedCategory == category,
-                onClick = { onSelectCategory(category) },
-                label = { Text(category) },
-                shape = RoundedCornerShape(20.dp)
-            )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(allCats) { cat ->
+                val isSelected = if (cat == "All") selectedCategory.isEmpty() else selectedCategory.equals(cat, ignoreCase = true)
+                QuickBillChip(
+                    text = cat,
+                    selected = isSelected,
+                    onClick = { onSelectCategory(if (cat == "All") "" else cat) }
+                )
+            }
         }
     }
 }
+
+// =========================================================================
+// Product Grid (Screen 5 Mockup)
+// 3 columns or adaptive with soft warm cards and rich food thumbnails
+// =========================================================================
 
 @Composable
 private fun ProductGrid(
     products: List<ProductEntity>,
+    cartItems: List<com.quickbill.pos.data.model.CartItem>,
     onProductClick: (ProductEntity) -> Unit,
+    onIncrement: (ProductEntity) -> Unit,
+    onDecrement: (ProductEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     if (products.isEmpty()) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.SearchOff,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "No products found",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-            }
-        }
+        QuickBillEmptyState(
+            title = "No products found",
+            description = "Try adjusting your search query or category filter",
+            modifier = modifier.fillMaxSize()
+        )
     } else {
+        val cartItemMap = remember(cartItems) { cartItems.associateBy { it.product.id } }
+
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
+            columns = GridCells.Adaptive(minSize = 135.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(
+                bottom = if (isLandscape) 40.dp else if (cartItems.isNotEmpty()) 170.dp else 100.dp,
+                top = 4.dp
+            ),
             modifier = modifier.fillMaxSize()
         ) {
             items(products, key = { it.id }) { product ->
-                ProductCard(
+                val cartItem = cartItemMap[product.id]
+                QuickBillProductCard(
                     product = product,
-                    onClick = { onProductClick(product) }
+                    onClick = { onProductClick(product) },
+                    cartQuantity = cartItem?.quantity ?: 0,
+                    onIncrement = { onIncrement(product) },
+                    onDecrement = { onDecrement(product) }
                 )
             }
         }
     }
 }
 
-@Composable
-private fun ProductCard(
-    product: ProductEntity,
-    onClick: () -> Unit
-) {
-    val isOutOfStock = product.stockQuantity <= 0
-    val isLowStock = !isOutOfStock && product.stockQuantity <= product.minStockAlert
-
-    Card(
-        onClick = onClick,
-        enabled = !isOutOfStock,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isOutOfStock) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isOutOfStock) 0.dp else 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth()
-        ) {
-            // Category & Tax pill
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = product.category,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                if (product.taxRate > 0) {
-                    Surface(
-                        color = PrimaryGreen.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "${product.taxRate.toInt()}% GST",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryGreen
-                            ),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Product Name
-            Text(
-                text = product.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // SKU
-            Text(
-                text = "SKU: ${product.sku}",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontSize = 10.sp
-                )
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Price & Stock indicator
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "₹${String.format(Locale.US, "%.2f", product.price)}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (isOutOfStock) Color.Gray else PrimaryGreen
-                    )
-                )
-
-                // Stock Badge
-                when {
-                    isOutOfStock -> {
-                        Surface(
-                            color = ErrorRed.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "Out of Stock",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ErrorRed
-                                ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    isLowStock -> {
-                        Surface(
-                            color = SecondaryAmber.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "${product.stockQuantity} left",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SecondaryAmber
-                                ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    else -> {
-                        Text(
-                            text = "${product.stockQuantity} in stock",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+// =========================================================================
+// Current Bill Header (Screen 6 Mockup)
+// "Current Bill" with [Hold] button top right
+// =========================================================================
 
 @Composable
-private fun CartHeader(
-    itemCount: Int,
+private fun CurrentBillHeader(
+    onHoldClick: () -> Unit,
     onClearCart: () -> Unit,
-    onHoldCart: () -> Unit
+    hasItems: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
-                tint = PrimaryGreen,
-                modifier = Modifier.size(22.dp)
+        Text(
+            text = "Current Bill",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextPrimaryLight
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Current Cart",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Badge(containerColor = PrimaryGreen) {
-                Text("$itemCount")
-            }
-        }
+        )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (itemCount > 0) {
-                FilledTonalIconButton(
-                    onClick = onHoldCart,
-                    modifier = Modifier.size(36.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // [Hold] Button top right matching mockup 6
+            Surface(
+                onClick = onHoldClick,
+                enabled = hasItems,
+                shape = RoundedCornerShape(8.dp),
+                color = if (hasItems) EmeraldContainer else SurfaceMutedLight,
+                border = BorderStroke(1.dp, if (hasItems) EmeraldPrimary.copy(alpha = 0.5f) else OutlineLight)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PauseCircleOutline,
-                        contentDescription = "Hold Cart",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.Pause,
+                        contentDescription = "Hold Bill",
+                        tint = if (hasItems) EmeraldPrimary else TextSecondaryLight,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Hold",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasItems) EmeraldPrimary else TextSecondaryLight
+                        )
                     )
                 }
-                FilledTonalIconButton(
+            }
+
+            if (hasItems) {
+                IconButton(
                     onClick = onClearCart,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DeleteSweep,
-                        contentDescription = "Clear Cart",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Clear",
+                        tint = ErrorCoral,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
     }
 }
+
+// =========================================================================
+// Cart Items List (Screen 6 Mockup)
+// Filter Coffee  - 2 +  ₹80.00
+// Chicken Burger - 1 +  ₹150.00
+// French Fries   - 1 +  ₹90.00
+// =========================================================================
 
 @Composable
 private fun CartItemsList(
@@ -687,19 +631,23 @@ private fun CartItemsList(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    imageVector = Icons.Default.RemoveShoppingCart,
+                    imageVector = Icons.Default.ShoppingCart,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    tint = TextMutedLight,
                     modifier = Modifier.size(48.dp)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "Cart is Empty",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimaryLight
+                    )
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Tap products on the catalog to add",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    text = "Tap products from the catalog to add",
+                    style = MaterialTheme.typography.bodySmall.copy(color = TextSecondaryLight)
                 )
             }
         }
@@ -709,7 +657,7 @@ private fun CartItemsList(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(cartItems, key = { it.product.id }) { item ->
-                CartItemRow(
+                CartItemCardRow(
                     item = item,
                     onIncrement = { onIncrement(item.product.id) },
                     onDecrement = { onDecrement(item.product.id) },
@@ -721,207 +669,320 @@ private fun CartItemsList(
     }
 }
 
+// Cart item row matching Screen 6 mockup
 @Composable
-private fun CartItemRow(
+private fun CartItemCardRow(
     item: CartItem,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
     onRemove: () -> Unit,
     onDiscountClick: () -> Unit
 ) {
-    Card(
+    val hasDiscount = item.discountType != DiscountType.NONE && item.discountValue > 0.0
+
+    Surface(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        color = SurfaceWhite,
+        border = BorderStroke(1.dp, if (hasDiscount) EmeraldPrimary.copy(alpha = 0.4f) else OutlineLight),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Thumbnail
+                ProductThumbnail(
+                    productName = item.product.name,
+                    category = item.product.category,
+                    size = 42.dp
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Name & Unit Price
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.product.name,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimaryLight
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "₹ ${String.format(Locale.US, "%.2f", item.unitPrice)}",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextSecondaryLight)
+                        )
+                        if (item.taxRate > 0) {
+                            Text(
+                                text = " · GST ${item.taxRate.toInt()}%",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = TextMutedLight,
+                                    fontSize = 10.sp
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Stepper [- 2 +]
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(SurfaceMutedLight)
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    IconButton(onClick = onDecrement, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(12.dp))
+                    }
                     Text(
-                        text = "₹${String.format(Locale.US, "%.2f", item.unitPrice)} each" + if (item.taxRate > 0) " • ${item.taxRate.toInt()}% GST" else "",
-                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        text = "${item.quantity}",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
+                    IconButton(onClick = onIncrement, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(12.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Total Price
+                Column(horizontalAlignment = Alignment.End) {
+                    if (hasDiscount) {
+                        Text(
+                            text = "₹ ${String.format(Locale.US, "%.2f", item.grossAmount)}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = TextMutedLight,
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                    Text(
+                        text = "₹ ${String.format(Locale.US, "%.2f", item.lineTotal)}",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasDiscount) EmeraldPrimary else TextPrimaryLight
+                        )
                     )
                 }
 
-                // Line Total
-                Text(
-                    text = "₹${String.format(Locale.US, "%.2f", item.lineTotal)}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryGreen
+                // Remove Icon
+                IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Remove",
+                        tint = CoralAccent,
+                        modifier = Modifier.size(16.dp)
                     )
-                )
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Bottom controls: Discount chip & Quantity Stepper
+            // Per-Item Discount Bar / Pill
+            Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Item Discount Pill
-                Surface(
-                    onClick = onDiscountClick,
-                    color = if (item.itemDiscountAmount > 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                if (hasDiscount) {
+                    Surface(
+                        onClick = onDiscountClick,
+                        shape = RoundedCornerShape(6.dp),
+                        color = EmeraldPrimary.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f))
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalOffer,
-                            contentDescription = null,
-                            tint = if (item.itemDiscountAmount > 0) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (item.itemDiscountAmount > 0) "-₹${String.format(Locale.US, "%.2f", item.itemDiscountAmount)}" else "Add Disc",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                fontWeight = if (item.itemDiscountAmount > 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (item.itemDiscountAmount > 0) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalOffer,
+                                contentDescription = "Item Discount",
+                                tint = EmeraldPrimary,
+                                modifier = Modifier.size(12.dp)
                             )
-                        )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val discountText = if (item.discountType == DiscountType.PERCENTAGE) {
+                                "${item.discountValue.toInt()}% OFF (-₹${String.format(Locale.US, "%.2f", item.itemDiscountAmount)})"
+                            } else {
+                                "₹${String.format(Locale.US, "%.0f", item.discountValue)} FLAT OFF (-₹${String.format(Locale.US, "%.2f", item.itemDiscountAmount)})"
+                            }
+                            Text(
+                                text = discountText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldPrimary,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        onClick = onDiscountClick,
+                        shape = RoundedCornerShape(6.dp),
+                        color = SurfaceMutedLight,
+                        border = BorderStroke(1.dp, OutlineLight.copy(alpha = 0.6f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalOffer,
+                                contentDescription = "Add Item Discount",
+                                tint = TextSecondaryLight,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "+ Item Discount",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextSecondaryLight,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
                     }
                 }
 
-                // Quantity Counter (+ / -)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    FilledTonalIconButton(
-                        onClick = onDecrement,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(14.dp))
-                    }
-
-                    Text(
-                        text = "${item.quantity}",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(horizontal = 6.dp)
-                    )
-
-                    FilledTonalIconButton(
-                        onClick = onIncrement,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(14.dp))
-                    }
-
-                    IconButton(
-                        onClick = onRemove,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Remove",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
+                // Edit/Change discount text action
+                Text(
+                    text = if (hasDiscount) "Change" else "Add % / Flat",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = EmeraldPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    modifier = Modifier.clickable { onDiscountClick() }
+                )
             }
         }
     }
 }
 
+// =========================================================================
+// Current Bill Summary & Discount Section (Screen 6 Mockup)
+// "Add Discount" segmented toggle, Subtotal, Discount, Tax, Grand Total,
+// and dominant "PROCEED TO PAY" CTA button.
+// =========================================================================
+
 @Composable
-private fun CartSummarySection(
+private fun CurrentBillSummaryCard(
     summary: com.quickbill.pos.data.model.CartSummary,
-    onBillDiscountClick: () -> Unit,
-    onCheckoutClick: () -> Unit
+    onAddDiscountClick: () -> Unit,
+    onProceedToPay: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = RoundedCornerShape(16.dp),
+        color = WarmBackgroundLight,
+        border = BorderStroke(1.dp, OutlineLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(if (isLandscape) 10.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 8.dp)
         ) {
-            // Subtotal
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "Subtotal", style = MaterialTheme.typography.bodySmall)
-                Text(text = "₹${String.format(Locale.US, "%.2f", summary.subtotal)}", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
-            }
-
-            // Item Discounts if any
-            if (summary.itemDiscountTotal > 0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Item Discounts", style = MaterialTheme.typography.bodySmall.copy(color = PrimaryGreen))
-                    Text(text = "-₹${String.format(Locale.US, "%.2f", summary.itemDiscountTotal)}", style = MaterialTheme.typography.bodySmall.copy(color = PrimaryGreen, fontWeight = FontWeight.Bold))
-                }
-            }
-
-            // Whole Bill Discount row / trigger
+            // Add Discount Row (Screen 6 Mockup)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = onBillDiscountClick,
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (summary.billDiscountAmount > 0) "Bill Discount (${summary.billDiscountValue.toInt()}${if (summary.billDiscountType == DiscountType.PERCENTAGE) "%" else "₹"})" else "+ Whole-Bill Discount",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                }
+                Text(
+                    text = "Add Discount",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                )
 
-                if (summary.billDiscountAmount > 0) {
-                    Text(
-                        text = "-₹${String.format(Locale.US, "%.2f", summary.billDiscountAmount)}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, color = PrimaryGreen)
-                    )
+                Surface(
+                    onClick = onAddDiscountClick,
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (summary.billDiscountAmount > 0) CoralContainer else SurfaceWhite,
+                    border = BorderStroke(1.dp, if (summary.billDiscountAmount > 0) CoralAccent else OutlineLight)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalOffer,
+                            contentDescription = null,
+                            tint = if (summary.billDiscountAmount > 0) CoralAccent else EmeraldPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (summary.billDiscountAmount > 0) {
+                                "${summary.billDiscountValue.toInt()}% Off"
+                            } else {
+                                "+ Bill Discount"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (summary.billDiscountAmount > 0) CoralAccent else EmeraldPrimary
+                            )
+                        )
+                    }
                 }
             }
 
-            // GST Breakup: CGST + SGST
-            if (summary.taxTotal > 0) {
+            HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
+
+            // Subtotal
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Subtotal", style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondaryLight))
+                Text(
+                    text = "₹ ${String.format(Locale.US, "%.2f", summary.subtotal)}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+
+            // Discount
+            if (summary.totalDiscount > 0) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "CGST (Central Tax)", style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-                    Text(text = "₹${String.format(Locale.US, "%.2f", summary.cgstTotal)}", style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "SGST (State Tax)", style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-                    Text(text = "₹${String.format(Locale.US, "%.2f", summary.sgstTotal)}", style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+                    Text(
+                        text = "Discount (${summary.billDiscountValue.toInt()}%)",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = CoralAccent)
+                    )
+                    Text(
+                        text = "- ₹ ${String.format(Locale.US, "%.2f", summary.totalDiscount)}",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = CoralAccent)
+                    )
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            // Tax
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Tax (GST)", style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondaryLight))
+                Text(
+                    text = "₹ ${String.format(Locale.US, "%.2f", summary.taxTotal)}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+
+            HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
 
             // Grand Total
             Row(
@@ -930,40 +991,31 @@ private fun CartSummarySection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "GRAND TOTAL",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    text = "Grand Total",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimaryLight
+                    )
                 )
                 Text(
-                    text = "₹${String.format(Locale.US, "%.2f", summary.grandTotal)}",
+                    text = "₹ ${String.format(Locale.US, "%.2f", summary.grandTotal)}",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        color = PrimaryGreen
+                        color = TextPrimaryLight
                     )
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Checkout Button
-            Button(
-                onClick = onCheckoutClick,
+            // Proceed to Pay Primary Button (Screen 6 Mockup)
+            QuickBillButton(
+                text = "Proceed to Pay",
+                onClick = onProceedToPay,
                 enabled = summary.items.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryGreen,
-                    disabledContainerColor = PrimaryGreen.copy(alpha = 0.4f)
-                )
-            ) {
-                Icon(imageVector = Icons.Default.Payment, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "CHECKOUT (₹${String.format(Locale.US, "%.2f", summary.grandTotal)})",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-            }
+                containerColor = EmeraldPrimary,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

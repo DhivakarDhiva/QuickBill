@@ -13,7 +13,9 @@ import com.quickbill.pos.data.model.CartSummary
 import com.quickbill.pos.data.model.PaymentMode
 import com.quickbill.pos.data.model.PaymentSplit
 import com.quickbill.pos.data.local.entity.UserEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -95,7 +97,7 @@ class BillingRepository(
                     subtotal = cartSummary.subtotal,
                     discountType = cartSummary.billDiscountType,
                     discountValue = cartSummary.billDiscountValue,
-                    discountAmount = cartSummary.billDiscountAmount,
+                    discountAmount = if (cartSummary.totalDiscount > 0.0) cartSummary.totalDiscount else (cartSummary.billDiscountAmount + cartSummary.itemDiscountTotal),
                     cgstAmount = cartSummary.cgstTotal,
                     sgstAmount = cartSummary.sgstTotal,
                     taxAmount = cartSummary.taxTotal,
@@ -267,5 +269,17 @@ class BillingRepository(
 
     suspend fun deleteHeldCart(id: Long) {
         heldCartDao.deleteHeldCartById(id)
+    }
+
+    suspend fun clearAllTransactions(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            database.billDao().deleteAllBills()
+            database.billItemDao().deleteAllBillItems()
+            database.billPaymentDao().deleteAllPayments()
+            database.heldCartDao().deleteAllHeldCarts()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

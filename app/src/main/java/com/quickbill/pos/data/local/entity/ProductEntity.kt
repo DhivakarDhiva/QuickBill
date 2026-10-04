@@ -23,4 +23,7 @@ data class ProductEntity(
     val minStockAlert: Int = 5,
     val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
-)
+) {
+    val isOutOfStock: Boolean get() = stockQuantity <= 0
+    val isLowStock: Boolean get() = stockQuantity in 1..minStockAlert
+}
