@@ -1,188 +1,145 @@
-# QuickBill POS - Retail Point of Sale System
+# QuickBill POS
 
-[![Android CI](https://img.shields.io/badge/Platform-Android_14_%2B-green.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-blue.svg)](https://kotlinlang.org)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-purple.svg)](https://developer.android.com/jetpack/compose)
-[![Architecture](https://img.shields.io/badge/Architecture-MVVM-orange.svg)](https://developer.android.com/topic/architecture)
-[![Database](https://img.shields.io/badge/Room_DB-2.6.1-red.svg)](https://developer.android.com/training/data-storage/room)
+[![Platform](https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-brightgreen.svg)](https://developer.android.com)
+[![Target SDK](https://img.shields.io/badge/Target_SDK-35-blue.svg)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple.svg)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Compose-BOM_2024.12.01-informational.svg)](https://developer.android.com/jetpack/compose)
+[![Room](https://img.shields.io/badge/Room-2.6.1-orange.svg)](https://developer.android.com/training/data-storage/room)
+[![Koin](https://img.shields.io/badge/Koin-4.0.0-critical.svg)](https://insert-koin.io)
 
-**QuickBill POS** is a modern, offline-ready Android Point of Sale (POS) and inventory management system designed for supermarkets, retail grocery stores, and quick-service shops. Built entirely with **Kotlin**, **Jetpack Compose (Material 3)**, and **MVVM Clean Architecture**, QuickBill provides a frictionless checkout experience for cashiers with instant barcode scanning, accurate GST calculation, flexible discounts, split payments, and thermal PDF receipt generation.
+An offline-first Android Point of Sale (POS) and inventory management app built with modern Android development practices: **Kotlin 2.1**, **Jetpack Compose (Material 3)**, **Room Database**, **Koin DI**, and **Coroutines / Flow**.
 
----
-
-## 🌟 Key Features
-
-### 1. Must-Have Core Features
-- **Cashier Authentication & Login**:
-  - Secure 4-digit PIN authentication with on-screen numeric keypad.
-  - Multi-user role support (Store Manager / Admin vs Cashier).
-  - 1-tap quick cashier selector for instant demo testing and fast lane handover.
-- **Product & Inventory Management**:
-  - Full CRUD: Add, edit, soft-delete products.
-  - Fields: Name, SKU / Barcode, Category, Price, Tax Rate (0%, 5%, 12%, 18%, 28%), Stock Quantity, and Min-Stock Alert threshold.
-  - Real-time stock availability indicators with low-stock badges.
-  - Quick-stock steppers (`-1`, `+1`, `+10`) directly on product cards.
-  - Strict block on selling out-of-stock items (cannot add or checkout if unavailable).
-- **Billing Terminal & POS Checkout**:
-  - Fast search by product name or SKU/barcode.
-  - Category filter chips (Groceries, Dairy, Beverages, Snacks, Personal Care, Household).
-  - Touchscreen cart management: adjust quantity (`+` / `-`), remove line items, clear cart.
-  - Real-time inventory check preventing cashier from exceeding in-stock items.
-  - **Park / Hold Cart**: Pause an order to serve the next customer, with a dedicated Parked Orders screen to resume anytime.
-- **Flexible Discounts**:
-  - **Per-item discount**: Apply percentage (%) or flat amount (₹) directly on individual items with savings breakdown.
-  - **Whole-bill discount**: Percentage (%) or flat amount (₹) applied across the entire bill.
-  - Clamping safeguards preventing discount from exceeding item or bill subtotal.
-- **GST-Style Per-Item Tax Calculation**:
-  - Dual GST breakdown: Accurate **CGST** and **SGST** calculations per item and whole-bill total.
-  - Accurate financial rounding using `BigDecimal` (`HALF_UP`) to ensure exact paise/rupee matching.
-- **Payment & Split Tender**:
-  - Modes: **Cash**, **Card**, **UPI**, and **Split Payment**.
-  - **Cash**: Instant calculation of amount tendered and change due, with fast round-up tender chips (`Exact`, `+50`, `+100`, `+500`).
-  - **Card**: Optional transaction approval code or last 4 digits tracking.
-  - **UPI**: Simulated dynamic merchant QR code + UPI ID (`quickbill.store@pos`).
-  - **Split Payment**: Allocate distinct amounts across Cash, Card, and UPI with live remaining balance tracking.
-- **Thermal & PDF Receipts**:
-  - Generates professional 80mm-style thermal receipts.
-  - Displays Store Name, GSTIN, Bill Number, Date/Time, Cashier Name, Line Items, GST Tax Breakup (Rate, CGST, SGST), Payment Breakdown, and Change Returned.
-  - Native **PDF generation** with Android Share sheet (send via WhatsApp, Email, or Print).
-- **Sales History & Refund / Void with Stock Restoration**:
-  - Searchable past bills with date range filters (`Today`, `Yesterday`, `Last 7 Days`, `All Time`).
-  - Filter by status (`Completed`, `Refunded`).
-  - **Refund / Void**: In a database `@Transaction`, marks the bill as `REFUNDED` and **automatically restores inventory stock** for all purchased items.
-- **Daily Analytics & Reports**:
-  - Performance cards: Total Sales, Total Bills, Paid vs Refunded counts, Average Order Value.
-  - Payment-mode distribution bar and percentage breakdown (Cash vs Card vs UPI).
-  - **Top 5 Selling Items** leaderboard by units sold and revenue generated.
-
-### 2. Nice-to-Have (Bonus) Features Included
-- ✅ **Offline-First with UI Acknowledgment**: Built with Room local SQLite. Features a live Network Monitor with online/offline chip indicator in the top bar.
-- ✅ **Barcode Scanner**: Integrated **CameraX + Google ML Kit Barcode Scanning** with targeting reticle, plus quick manual barcode entry.
-- ✅ **CSV / Excel Export**: One-tap export of Inventory, Sales Bills, and Daily Reports to standard `.csv` files with Android Share sheet.
-- ✅ **Dark & Light Mode**: High-contrast, cashier-optimized Material 3 color palette in both Dark and Light themes.
-- ✅ **Thorough Unit Tests**: Dedicated JUnit tests verifying GST tax calculations, discounts, split payments, and cash change logic.
+Designed for retail counters, grocery stores, and small businesses needing fast terminal checkouts, GST compliance (CGST + SGST split), barcode scanning, split payments, thermal receipts, and local sales reporting without internet dependencies.
 
 ---
 
-## 📱 Application Screenshots
-
-| Cashier Login | POS Billing Terminal | Live Cart & Discounts |
-|:---:|:---:|:---:|
-| ![Login Screen](screenshots/01_login_screen.png) | ![Billing Screen](screenshots/02_billing_screen.png) | ![Cart View](screenshots/04_cart_view.png) |
-
-| Payment & Split Tender | Thermal Receipt & PDF | Navigation Drawer |
-|:---:|:---:|:---:|
-| ![Payment Dialog](screenshots/05_payment_dialog.png) | ![Receipt Dialog](screenshots/06_receipt_dialog.png) | ![Nav Drawer](screenshots/07_nav_drawer.png) |
-
-| Product Inventory Management | Sales History & Refunds | Daily Analytics & Top Items |
-|:---:|:---:|:---:|
-| ![Products Screen](screenshots/08_products_screen.png) | ![Sales History Screen](screenshots/09_sales_history_screen.png) | ![Daily Analytics Screen](screenshots/10_daily_analytics_screen.png) |
-
----
-
-## 🏗️ Architecture & Tech Stack
-
-QuickBill follows Google's recommended **Modern Android Architecture (MVVM + Clean Architecture)**:
+## Tech Stack & Architecture Decisions
 
 ```
 com.quickbill.pos/
-├── QuickBillApp.kt                     # Application initialization, Room DB & sample seeder
-├── MainActivity.kt                     # Jetpack Compose root, NavHost, Drawer & TopBar
-│
+├── app/
+│   └── QuickBillApp.kt             # Application class; initializes Koin, seeds defaults, restores session
 ├── data/
 │   ├── local/
-│   │   ├── QuickBillDatabase.kt        # Room database with TypeConverters
-│   │   ├── dao/                        # DAOs: ProductDao, BillDao, BillItemDao, UserDao, HeldCartDao
-│   │   └── entity/                     # Entities: ProductEntity, BillEntity, BillItemEntity, etc.
-│   ├── model/                          # Enums, CartItem, CartSummary, PaymentSplit, DailyReportData
-│   ├── repository/                     # AuthRepository, ProductRepository, BillingRepository, ReportRepository
-│   ├── seed/                           # SampleDataSeeder (Preloaded catalog, cashiers & bills)
+│   │   ├── QuickBillDatabase.kt    # Room DB definition (entities, converters, versioning)
+│   │   ├── Converters.kt           # Room TypeConverters for Enums (PaymentMode, DiscountType, UserRole, BillStatus)
+│   │   ├── dao/                    # ProductDao, BillDao, BillItemDao, BillPaymentDao, HeldCartDao, UserDao
+│   │   └── entity/                 # ProductEntity, BillEntity, BillItemEntity, BillPaymentEntity, HeldCartEntity, UserEntity
+│   ├── model/                      # CartItem, CartSummary, PaymentSplit, DailyReportData, Enums
+│   ├── repository/                 # AuthRepository, BillingRepository, ProductRepository, ReportRepository, ThemeRepository
+│   ├── seed/                       # SampleDataSeeder (default cashiers & starter product catalog)
 │   └── util/
-│       ├── BillingCalculator.kt        # Pure Kotlin unit-testable GST & discount math engine
-│       ├── PdfReceiptGenerator.kt      # Native Android PdfDocument receipt generator
-│       ├── CsvExporter.kt              # CSV generation for bills, inventory, reports
-│       └── NetworkMonitor.kt           # ConnectivityManager network status observer
-│
+│       ├── BillingCalculator.kt    # Pure Kotlin calculations (tax, discounts, splits, change due)
+│       ├── PdfReceiptGenerator.kt  # Android Graphics/PdfDocument 80mm thermal receipt generator
+│       ├── CsvExporter.kt          # Storage/Share-compatible CSV report exporter
+│       └── NetworkMonitor.kt       # ConnectivityManager Flow-based network observer
+├── di/
+│   └── AppModule.kt                # Koin dependency injection module (DAOs, Repos, ViewModels)
 ├── ui/
-│   ├── navigation/                     # Destinations: Login, Billing, Products, History, Reports, HeldCarts
-│   ├── theme/                          # Material3 Color, Type, Theme tokens
-│   ├── components/                     # QuickBillTopBar, NavDrawer, Keypad, BarcodeScanner, PaymentDialog, ReceiptDialog
-│   └── screens/
-│       ├── auth/                       # LoginScreen & LoginViewModel
-│       ├── billing/                    # BillingScreen, BillingViewModel, HeldCartsScreen
-│       ├── products/                   # ProductsScreen & ProductsViewModel
-│       ├── history/                    # SalesHistoryScreen & SalesHistoryViewModel
-│       └── reports/                    # DailyReportScreen & ReportsViewModel
-│
-└── test/
-    └── BillingCalculatorTest.kt        # Unit tests for tax, discounts, payments, change
+│   ├── components/                 # Reusable UI widgets, dialogs (TopBar, NavDrawer, ReceiptDialog, PaymentDialog, etc.)
+│   ├── navigation/                 # Navigation Compose routes & Screen sealed class
+│   ├── screens/
+│   │   ├── auth/                   # Cashier login & PIN entry
+│   │   ├── billing/                # Terminal cart, barcode lookup, held carts
+│   │   ├── dashboard/              # Store analytics summary, quick actions, KPI cards
+│   │   ├── history/                # Searchable sales history, calendar range picker, refund
+│   │   ├── products/               # Product catalog, SKU duplicate guard, stock adjustments
+│   │   └── reports/                # Daily sales breakdown, top selling items, CSV export
+│   └── theme/                      # Material 3 color system, shapes, typography, motion specs
 ```
 
-### Core Technologies
-- **Language**: Kotlin 2.1.0
-- **UI Framework**: Jetpack Compose with Material 3 (BOM 2024.12.01)
-- **Local Persistence**: Room Database 2.6.1 with KSP (Kotlin Symbol Processing)
-- **Concurrency & State**: Kotlin Coroutines & `StateFlow`
-- **Navigation**: Navigation Compose 2.8.5
-- **Camera & Barcode**: CameraX 1.4.1 + Google ML Kit Barcode Scanning 17.3.0
-- **Document Generation**: Android `PdfDocument` API + FileProvider
+### Why these libraries?
+
+- **Jetpack Compose + Material 3**: Fully declarative UI with custom thermal-style receipt previews, adaptive layouts (phones & POS tablets), and fluid animations.
+- **Koin 4.0**: Lightweight dependency injection. Avoids heavy annotation-processing overhead (kapt) associated with Dagger/Hilt, keeping build times fast and test setup straightforward with `koinViewModel()`.
+- **Room 2.6.1 + KSP**: Offline-first local persistence. Relational integrity across bills, line items, and payments. Room `@Transaction` blocks are used for checkout and refund stock-restoration routines.
+- **Kotlinx Coroutines & Flow**: Reactive data streams from Room DAOs to ViewModel `StateFlow`s, collected in Compose via `collectAsState()`.
+- **CameraX 1.4.1 + Google ML Kit Barcode Scanning**: On-device SKU/barcode scanning through camera feed with an overlay reticle.
+- **Android `PdfDocument`**: Native receipt rendering without third-party PDF SDK bloat. Direct export via standard Android share sheet for printing or messaging.
+- **BigDecimal Math**: All currency, discount, and tax calculations are handled with `BigDecimal` and `RoundingMode.HALF_UP` to prevent floating-point paise rounding errors.
 
 ---
 
-## 🧮 Business Logic & GST Calculation Formulas
+## Architectural & Business Logic Assumptions
 
-QuickBill's calculation engine ([BillingCalculator.kt](app/src/main/java/com/quickbill/pos/data/util/BillingCalculator.kt)) enforces strict financial precision:
-
-### 1. Item-Level Calculations
-- **Gross Amount**:
-  $$\text{Gross} = \text{UnitPrice} \times \text{Quantity}$$
-- **Item Discount**:
-  $$\text{ItemDiscount} = \begin{cases} \text{Gross} \times \left(\frac{\text{Percent}}{100}\right) & \text{if PERCENTAGE} \\ \min(\text{Gross}, \text{FlatAmount}) & \text{if FLAT} \end{cases}$$
-- **Taxable Amount**:
-  $$\text{Taxable} = \text{Gross} - \text{ItemDiscount}$$
-- **GST Components (CGST + SGST)**:
-  $$\text{CGST} = \text{Round2}\left(\text{Taxable} \times \frac{\text{TaxRate} / 2}{100}\right)$$
-  $$\text{SGST} = \text{Round2}\left(\text{Taxable} \times \frac{\text{TaxRate} / 2}{100}\right)$$
-  $$\text{TaxTotal} = \text{CGST} + \text{SGST}$$
-- **Line Total**:
-  $$\text{LineTotal} = \text{Taxable} + \text{TaxTotal}$$
-
-### 2. Whole-Bill Discount & Proportional GST Adjustment
-When a whole-bill discount is applied, it is deducted from the net taxable amount and apportioned proportionally across individual items so that the resulting CGST and SGST remain strictly compliant with Indian GST standards.
-
-### 3. Cash Tendered & Change Due
-$$\text{ChangeDue} = \begin{cases} \text{CashTendered} - \text{CashDue} & \text{if CashTendered} \ge \text{CashDue} \\ 0 & \text{otherwise} \end{cases}$$
+1. **Strict Offline-First**:
+   - The app does not require a remote server to complete sales, manage stock, or generate reports.
+   - A `NetworkMonitor` observer detects connectivity changes and displays an offline status indicator in the top bar, but terminal operations are never blocked by network state.
+2. **Atomic Inventory Transactions**:
+   - When a sale completes, item stocks are decremented in a single database transaction. If an item does not have enough stock, the checkout fails cleanly.
+   - Refunding or voiding a bill updates its status to `REFUNDED` and rolls back inventory stock for all associated line items inside a database `@Transaction`.
+3. **Non-Destructive Soft Deletes**:
+   - Deleting a product sets `isArchived = 1` rather than issuing a raw SQL `DELETE`. This preserves foreign key references and historical sales records for past bills and daily reports.
+4. **GST Tax Structure (Indian GST Standard)**:
+   - Each product holds a tax rate percentage (0%, 5%, 12%, 18%, or 28%).
+   - GST is split equally between **CGST** and **SGST** (e.g., 18% GST = 9% CGST + 9% SGST).
+   - Taxes are calculated against the net taxable subtotal (after line-item and apportioned bill discounts).
+5. **Discount Guardrails**:
+   - Per-item and whole-bill discounts support both Percentage (%) and Flat (₹) values.
+   - Percentage discounts are clamped between 0% and 100%.
+   - Flat discounts cannot exceed the gross line-item or bill subtotal.
+6. **Cashier Sessions & Role Enforcement**:
+   - User sessions are persisted in encrypted/private `SharedPreferences`. When the app is closed and reopened, the logged-in session is restored until an explicit logout.
+   - Actions like clearing sales history are restricted to `UserRole.ADMIN`.
+7. **Appearance Preferences**:
+   - Supports System Default, Light Mode, and Dark Mode.
+   - The user's selection is persisted in `SharedPreferences` and loaded before first frame composition.
 
 ---
 
-## 🚀 Setup and Build Instructions
+## Developer Setup & Build Instructions
 
 ### Prerequisites
-- JDK 17 or JDK 21 (Set `JAVA_HOME`)
-- Android SDK with platform `android-35` and build-tools `35.0.0`
-- Git
+- **Android Studio**: Ladybug (2024.2+) or Meerkat (recommended).
+- **JDK**: Version 17 or 21 (Android Studio bundled JBR works out of the box).
+- **Android SDK**:
+  - `compileSdk`: 35
+  - `minSdk`: 26 (Android 8.0 Oreo)
+  - `targetSdk`: 35
+  - Build-Tools: `35.0.0`
 
-### Build Debug APK
-Run the Gradle wrapper from the project root:
+### Build from Command Line
 
-```bash
-# On Windows PowerShell:
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr" # or your JDK 21 path
-.\gradlew assembleDebug
+Set your `JAVA_HOME` pointing to your JDK or Android Studio's bundled JBR:
+
+**Windows (PowerShell):**
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+.\gradlew.bat assembleDebug
 ```
 
-The compiled APK will be generated at:
+**macOS / Linux (Bash):**
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr"
+./gradlew assembleDebug
+```
+
+The compiled APK will be located at:
 ```
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### Run Unit Tests
-```bash
-.\gradlew test
-```
-All unit tests in `BillingCalculatorTest` will execute and generate an HTML report under `app/build/reports/tests/testDebugUnitTest/index.html`.
+### Running Unit Tests
 
-### Install on Device or Emulator
+Run the test suite across tax calculations, inventory logic, edge cases, payments, and theme persistence:
+
+```bash
+# Windows
+.\gradlew.bat testDebugUnitTest
+
+# macOS / Linux
+./gradlew testDebugUnitTest
+```
+
+HTML test reports are generated at:
+```
+app/build/reports/tests/testDebugUnitTest/index.html
+```
+
+### Installing via ADB
+
+Connect an Android device with USB debugging enabled or start an emulator:
+
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.quickbill.pos/.MainActivity
@@ -190,42 +147,213 @@ adb shell am start -n com.quickbill.pos/.MainActivity
 
 ---
 
-## 🔑 Pre-Loaded Seed / Sample Data
+## Pre-Seeded Default Accounts & Catalog
 
-On the first launch, QuickBill automatically seeds realistic data into the local Room database:
+If the database is empty upon initial install, QuickBill seeds starter accounts and sample products:
 
-### Default Cashier & Admin Users
-| Role | Full Name | Username | PIN |
-|---|---|---|---|
-| **Store Manager** | Store Manager | `admin` | `1234` |
-| **Cashier 1** | Rahul Sharma | `cashier1` | `0000` |
-| **Cashier 2** | Priya Patel | `cashier2` | `1111` |
+### Accounts
+| Role | Full Name | Username | PIN | Permissions |
+|---|---|---|---|---|
+| **Store Manager** | Store Manager | `admin` | `1234` | Full access (Billing, Catalog CRUD, History, Reports, Clear Sales) |
+| **Cashier 1** | Rahul Sharma | `cashier1` | `0000` | Billing, Product viewing, Standard sales history |
+| **Cashier 2** | Priya Patel | `cashier2` | `1111` | Billing, Product viewing, Standard sales history |
 
-*(Note: You can also tap any quick-select button on the login screen to sign in instantly!)*
+*Note: The login screen contains 1-tap quick buttons to sign in with any demo account directly.*
 
-### Sample Products Catalog
-The database includes 19 pre-configured products spanning all major grocery departments:
-- **Groceries**: Basmati Rice 1kg (5% GST), Whole Wheat Atta 5kg (0% GST), Toor Dal 1kg (5% GST), Sugar Crystals (5% GST), Sunflower Oil (5% GST).
-- **Dairy**: Amul Butter 500g (12% GST), Fresh Paneer (5% GST), Greek Yogurt (**Low Stock demo: 2 left**), Full Cream Milk (**Out of Stock demo: 0 left**).
-- **Beverages**: Roasted Coffee Beans (5% GST), Green Tea (5% GST), Sparkling Soda Can (28% GST), Cold Pressed Orange Juice (12% GST).
-- **Snacks**: Dark Chocolate Almonds (18% GST), Baked Potato Crisps (12% GST), Artisan Sourdough Loaf (5% GST).
-- **Personal & Household**: Moisturizing Bath Soap (18% GST), Herbal Toothpaste (18% GST), Liquid Dishwash Gel (18% GST).
+### Sample Catalog
+Includes 19 pre-configured grocery and retail items across categories (Groceries, Dairy, Beverages, Snacks, Personal Care, Household) with varying GST brackets (0% to 28%) and simulated stock levels (including low-stock and out-of-stock items for edge-case testing).
 
 ---
 
-## 🧪 Unit Testing Summary
+## Screen Layouts & Functional Walkthrough
 
-Unit tests in `app/src/test/java/com/quickbill/pos/BillingCalculatorTest.kt` validate:
-1. `testEmptyCartReturnsZero`: Verifies zero subtotals, taxes, and items count.
-2. `testStandardBillingWithGst18`: Tests a ₹100 product x 2 at 18% GST resulting in ₹36 GST (CGST ₹18 + SGST ₹18) and ₹236 grand total.
-3. `testPerItemPercentageDiscount`: Tests a ₹200 item with 10% discount and 12% GST.
-4. `testPerItemFlatDiscount`: Tests a ₹150 item x 2 with ₹50 flat discount and 5% GST.
-5. `testWholeBillDiscountPercentage`: Tests 10% whole-bill discount and proportional GST adjustment.
-6. `testWholeBillDiscountFlat`: Tests ₹100 flat whole-bill discount.
-7. `testDiscountCannotExceedSubtotal`: Tests that excess discounts are clamped to 100% of taxable total.
-8. `testCashTenderedAndChange`: Tests exact tender, excess tender, and under-tender edge cases.
+### 1. Cashier Login (`LoginScreen.kt`)
+```
++---------------------------------------------------+
+|               [QuickBill POS Logo]                |
+|               Sign In to Terminal                 |
+|                                                   |
+|   [ Quick Login:  (Admin)  (Cashier 1)  (Cashier 2) ]  |
+|                                                   |
+|             Selected: Rahul Sharma (Cashier)       |
+|                  PIN: [ * * * * ]                 |
+|                                                   |
+|                  [ 1 ] [ 2 ] [ 3 ]                |
+|                  [ 4 ] [ 5 ] [ 6 ]                |
+|                  [ 7 ] [ 8 ] [ 9 ]                |
+|                  [ C ] [ 0 ] [ ⌫ ]                |
+|                                                   |
+|                [ UNLOCK TERMINAL ]                |
++---------------------------------------------------+
+```
+- 4-digit PIN authentication with haptic feedback.
+- Quick switch buttons for seamless cashier handovers.
+- Session persistence across app restarts.
+
+### 2. Dashboard (`DashboardScreen.kt`)
+```
++---------------------------------------------------+
+| ☰ QuickBill POS            [● Online] [Theme] [Avatar] |
++---------------------------------------------------+
+| Good Afternoon, Rahul Sharma                      |
+| [ Today's Sales: ₹14,250 ] [ Orders: 38 ]         |
+| [ Items Sold: 142       ] [ Low Stock: 3 ]        |
+|                                                   |
+| HOURLY SALES TREND                                |
+|  ₹ |    █                                         |
+|    |  █ █   █                                     |
+|    +--6A-9A-12P-3P-6P-9P------------------------- |
+|                                                   |
+| QUICK ACTIONS                                     |
+| [ New Sale ]  [ Add Product ]  [ Daily Report ]   |
+|                                                   |
+| TOP SELLING ITEMS                                 |
+| 1. Basmati Rice 1kg            24 sold  (₹2,880)  |
+| 2. Roasted Coffee Beans        18 sold  (₹5,760)  |
++---------------------------------------------------+
+```
+- Real-time KPI summaries for today's volume.
+- Interactive hourly sales bar chart.
+- Low stock warning banner linking directly to filtered product inventory.
+
+### 3. POS Billing Terminal (`BillingScreen.kt`)
+```
++---------------------------------------------------+
+| [🔍 Search product or SKU... ] [📷 Scan Barcode]   |
+| [All] [Groceries] [Dairy] [Beverages] [Snacks]    |
++-----------------------------------+---------------+
+| Products Grid                     | Active Cart   |
+| +-------------------------------+ | Item 1   x2   |
+| | Amul Butter 500g      ₹275.00 | | Item 2   x1   |
+| | GST: 12% | Stock: 18 left     | | ------------- |
+| +-------------------------------+ | Subtotal:  ₹- |
+| | Greek Yogurt 100g      ₹60.00 | | Disc (%):  ₹- |
+| | [LOW STOCK] | Stock: 2 left   | | CGST:      ₹- |
+| +-------------------------------+ | SGST:      ₹- |
+| | Full Cream Milk 1L     ₹68.00 | | Grand Total₹- |
+| | [OUT OF STOCK - Disabled]     | | [Hold] [Pay]  |
++-----------------------------------+---------------+
+```
+- Fast catalog filtering via text or camera barcode scanner.
+- Line item quantity increment/decrement, item discount configuration, and line total breakdown.
+- Cart holding functionality to park transactions and resume anytime from the top bar.
+
+### 4. Payment & Split Tender Modal (`PaymentDialog.kt`)
+```
++---------------------------------------------------+
+| Total Due: ₹840.00                                |
+| Select Payment Method:                            |
+| [ Cash ]     [ Card ]     [ UPI ]     [ Split ]   |
+|                                                   |
+| [Cash Mode Selected]                              |
+| Tendered: [ ₹1000.00                            ] |
+| Quick Add:  [Exact]  [+50]  [+100]  [+500]        |
+|                                                   |
+| ------------------------------------------------- |
+| Total Paid: ₹1000.00     Change Due: ₹160.00      |
+|                                                   |
+| [ Cancel ]                 [ Complete Sale & Print ] |
++---------------------------------------------------+
+```
+- Multi-tender support: Cash, Card, UPI, and Split tender.
+- Real-time change due calculator for cash payments.
+- Dynamic UPI QR display simulation and Card transaction reference capture.
+
+### 5. Thermal Receipt & PDF Export (`ReceiptDialog.kt`)
+```
++---------------------------------------------------+
+|               QUICKBILL SUPERMARKET               |
+|            GSTIN: 29ABCDE1234F1Z5                 |
+| Bill #: QB-20261004-0012    Date: 04/10/2026      |
+| Cashier: Rahul Sharma                             |
+| ------------------------------------------------- |
+| ITEM               QTY     RATE      AMOUNT       |
+| Basmati Rice 1kg    2    120.00      240.00       |
+| Amul Butter 500g    1    275.00      275.00       |
+| ------------------------------------------------- |
+| Subtotal:                           ₹515.00       |
+| CGST:                                ₹22.50       |
+| SGST:                                ₹22.50       |
+| Grand Total:                        ₹560.00       |
+| ------------------------------------------------- |
+| Payment: CASH                        ₹600.00      |
+| Change Due:                           ₹40.00      |
+|                                                   |
+| [ Close ]         [ Share PDF ]       [ Print ]   |
++---------------------------------------------------+
+```
+- Formatted 80mm thermal receipt preview.
+- Direct PDF rendering via Android `PdfDocument` with Android Share sheet intent.
+
+### 6. Product Management (`ProductsScreen.kt`)
+```
++---------------------------------------------------+
+| Inventory (19 Products)           [+ New Product] |
+| [🔍 Search by name / SKU ]   [Filter: Low Stock]  |
++---------------------------------------------------+
+| Product Item Card                                 |
+| Basmati Rice (1kg)            SKU: 890103000101   |
+| Category: Groceries           Price: ₹120.00      |
+| Tax: 5% GST                   Stock: 45 units     |
+| [ -1 ] [ +1 ] [ +10 ]         [ Edit ] [ Delete ] |
++---------------------------------------------------+
+```
+- Full product CRUD with duplicate SKU validation dialog.
+- Fast inline stock steppers (`-1`, `+1`, `+10`).
+- Non-destructive soft deletion (`isArchived = 1`).
+
+### 7. Sales History & Refund Management (`SalesHistoryScreen.kt`)
+```
++---------------------------------------------------+
+| Sales History                                     |
+| [🔍 Search Bill # or Customer ]                   |
+| Filter: [Today] [Yesterday] [Last 7 Days] [Custom]|
++---------------------------------------------------+
+| Bill #QB-20261004-0003       ₹740.00  [COMPLETED] |
+| 04 Oct 2026, 02:15 PM • Cashier: Priya Patel     |
+| Items: 3 • Payment: UPI                           |
+| [ View Receipt ]                   [ Issue Refund]|
++---------------------------------------------------+
+```
+- Comprehensive transaction history with custom calendar date-range filters.
+- Detailed receipt dialog inspection.
+- Refund execution with automatic Room `@Transaction` inventory restock.
+
+### 8. Daily Reports & Analytics (`DailyReportScreen.kt`)
+```
++---------------------------------------------------+
+| Daily Performance Report             [Export CSV] |
+| Selected Date: [ 04 Oct 2026 ▾ ]                  |
+|                                                   |
+| Gross Sales: ₹18,450     Net Sales: ₹17,900       |
+| Total Bills: 42          Refunds: 1 (₹550)        |
+|                                                   |
+| PAYMENT BREAKDOWN                                 |
+| Cash: ₹9,200 (51%) | Card: ₹5,100 | UPI: ₹3,600   |
+|                                                   |
+| ALL ITEMS SOLD (Click to inspect all lines)       |
++---------------------------------------------------+
+```
+- Full day-end reconciliation metrics.
+- Modal inspection of all items sold with quantities and generated revenues.
+- CSV export via standard Android share targets.
 
 ---
 
-## 📄 License
-This project is open-source under the MIT License.
+## Automated Test Coverage
+
+The unit test suite validates core business logic independently from the Android UI lifecycle:
+
+| Test Class | Purpose | Key Scenarios Tested |
+|---|---|---|
+| `TaxUnitTest` | GST calculation rules | 0%, 5%, 12%, 18%, 28% GST brackets; CGST/SGST 50-50 splits; paise rounding with `HALF_UP`. |
+| `PaymentUnitTest` | Cash & tender math | Exact cash payment; excess tender change calculation; split payments across Cash, Card, and UPI; remaining balance checks. |
+| `InventoryUnitTest` | Stock integrity | Stock decrements on checkout; out-of-stock validation; low-stock threshold triggers; inventory restoration on bill refund. |
+| `EdgeCaseBillingUnitTest` | Input boundaries | 100% discount clamping; flat discount exceeding item price; empty cart subtotals; zero-tax grocery staples. |
+| `ThemeUnitTest` | Appearance state | Persistence of `ThemeMode.SYSTEM`, `ThemeMode.LIGHT`, `ThemeMode.DARK` and default fallback behavior. |
+
+---
+
+## License
+
+This project is licensed under the MIT License.
