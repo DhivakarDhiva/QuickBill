@@ -35,6 +35,26 @@ https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
 
 ---
 
+## 📦 Download APK Build
+
+Download and install the pre-compiled APK directly on any Android Phone or Tablet:
+
+| Build Variant | Target Architecture | APK Size | Direct Download |
+|---|---|---|---|
+| **QuickBill POS (Release Build)** | `arm64-v8a`, `armeabi-v7a` | **11.5 MB** | [📥 **Download app-release.apk**](apk/app-release.apk) |
+
+> **Signed & Optimized**: Pre-signed with R8 code shrinking and ARM filtering for physical Android phones and tablets. Runs smoothly at 60/120 FPS with minimal RAM usage.
+
+### Quick Installation:
+1. **Direct on Device**: Download the APK file on your Android device, tap to open, and allow *"Install unknown apps"* if prompted.
+2. **Via ADB**:
+   ```bash
+   adb install -r apk/app-release.apk
+   adb shell am start -n com.quickbill.pos/.MainActivity
+   ```
+
+---
+
 ## Tech Stack & Architecture Decisions
 
 ```
