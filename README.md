@@ -29,6 +29,12 @@ Designed for retail counters, grocery stores, and small businesses needing fast 
 
 ---
 
+## 🎥 App Demo
+
+https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
+
+---
+
 ## Tech Stack & Architecture Decisions
 
 ```
