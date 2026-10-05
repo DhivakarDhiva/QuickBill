@@ -37,10 +37,8 @@ https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
 
 ## 📦 Download APK Build
 
-Download and install the pre-compiled APK directly on any Android Phone or Tablet:
+Download and install the pre-compiled APK directly on any Android Phone:
 
-| Build Variant | APK Size | Direct Download |
-|---|---|---|---|
 | **QuickBill POS (Release Build)** | **11.5 MB** | [📥 **Download app-release.apk**](apk/app-release.apk) |
 
 > **Signed & Optimized**: Pre-signed with R8 code shrinking and ARM filtering for physical Android phones and tablets. Runs smoothly at 60/120 FPS with minimal RAM usage.
