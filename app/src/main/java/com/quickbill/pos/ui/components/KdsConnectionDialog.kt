@@ -1,6 +1,7 @@
 package com.quickbill.pos.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,7 +20,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.quickbill.pos.data.model.kds.ConnectedKdsScreen
 import com.quickbill.pos.network.kds.ConnectionManager
 import com.quickbill.pos.network.kds.ConnectionStatus
 import com.quickbill.pos.network.kds.DiscoveredKdsService
@@ -33,6 +36,7 @@ fun KdsConnectionDialog(
 ) {
     val connectionStatus by orderSyncManager.connectionManager.connectionStatus.collectAsState()
     val connectedAddress by orderSyncManager.connectionManager.connectedServerAddress.collectAsState()
+    val connectedScreens by orderSyncManager.connectionManager.connectedKdsScreens.collectAsState()
     val lastErrorMessage by orderSyncManager.connectionManager.lastErrorMessage.collectAsState()
     val discoveredServices by orderSyncManager.discoveryManager.discoveredServices.collectAsState()
     val isDiscovering by orderSyncManager.discoveryManager.isDiscovering.collectAsState()
@@ -62,13 +66,15 @@ fun KdsConnectionDialog(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
                     .padding(20.dp)
                     .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Header
                 Row(
@@ -80,15 +86,36 @@ fun KdsConnectionDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Wifi,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Kitchen Display (KDS)",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Wifi,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Kitchen Display (KDS)",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp
+                                )
+                            )
+                            Text(
+                                text = "Broadcast orders to multiple screens",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
                     }
                     IconButton(onClick = {
                         orderSyncManager.discoveryManager.stopDiscovery()
@@ -98,7 +125,7 @@ fun KdsConnectionDialog(
                     }
                 }
 
-                // Current Connection Status Card
+                // Overall Status Summary Card
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = when (connectionStatus) {
@@ -115,7 +142,8 @@ fun KdsConnectionDialog(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -123,16 +151,20 @@ fun KdsConnectionDialog(
                                     .clip(CircleShape)
                                     .background(
                                         when (connectionStatus) {
-                                             ConnectionStatus.CONNECTED -> Color(0xFF16A34A)
-                                             ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFCA8A04)
-                                             ConnectionStatus.DISCONNECTED -> Color(0xFFDC2626)
+                                            ConnectionStatus.CONNECTED -> Color(0xFF16A34A)
+                                            ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFCA8A04)
+                                            ConnectionStatus.DISCONNECTED -> Color(0xFFDC2626)
                                         }
                                     )
                             )
                             Column {
                                 Text(
                                     text = when (connectionStatus) {
-                                        ConnectionStatus.CONNECTED -> "Connected to Kitchen"
+                                        ConnectionStatus.CONNECTED -> if (connectedScreens.size > 1) {
+                                            "Connected to ${connectedScreens.size} Kitchen Displays"
+                                        } else {
+                                            "Connected to Kitchen"
+                                        }
                                         ConnectionStatus.CONNECTING -> "Connecting..."
                                         ConnectionStatus.RECONNECTING -> "Reconnecting..."
                                         ConnectionStatus.DISCONNECTED -> "Disconnected"
@@ -144,13 +176,17 @@ fun KdsConnectionDialog(
                                         ConnectionStatus.DISCONNECTED -> MaterialTheme.colorScheme.onSurfaceVariant
                                     }
                                 )
-                                if (connectedAddress.isNotBlank()) {
-                                    Text(
-                                        text = connectedAddress,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    text = if (connectedScreens.size > 1) {
+                                        "Orders are broadcast to all ${connectedScreens.size} screens"
+                                    } else if (connectedAddress.isNotBlank()) {
+                                        connectedAddress
+                                    } else {
+                                        "Select or enter IP to connect screens"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
 
@@ -159,7 +195,7 @@ fun KdsConnectionDialog(
                                 onClick = { orderSyncManager.connectionManager.disconnectClient() },
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Text("Disconnect")
+                                Text("Disconnect All", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         } else if (orderSyncManager.connectionManager.getLastConnectedHost().isNotBlank()) {
                             Button(
@@ -169,7 +205,7 @@ fun KdsConnectionDialog(
                             ) {
                                 Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Reconnect")
+                                Text("Reconnect", fontSize = 12.sp)
                             }
                         }
                     }
@@ -201,37 +237,82 @@ fun KdsConnectionDialog(
                     }
                 }
 
-                // Outbox Queue Info
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
+                // Active Connected Kitchen Screens List (Requirement 1: Multi-KDS Management)
+                if (connectedScreens.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "Pending Offline Outbox",
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                                text = "Active Kitchen Screens (${connectedScreens.size})",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "$pendingCount order(s) waiting to sync",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (pendingCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Syncing live",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF16A34A)
                             )
                         }
 
-                        if (pendingCount > 0) {
-                            OutlinedButton(
-                                onClick = { orderSyncManager.drainPendingOutbox() },
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Sync Now")
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.heightIn(max = 130.dp)
+                        ) {
+                            items(connectedScreens) { screen ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFF0FDF4),
+                                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF16A34A))
+                                            )
+                                            Column {
+                                                Text(
+                                                    text = screen.name,
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = Color(0xFF166534)
+                                                )
+                                                Text(
+                                                    text = "${screen.host}:${screen.port}",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                    color = Color(0xFF15803D)
+                                                )
+                                            }
+                                        }
+
+                                        // Requirement 2: Dedicated Disconnect button for connected screen
+                                        OutlinedButton(
+                                            onClick = {
+                                                orderSyncManager.connectionManager.disconnectFromKds(screen.host, screen.port)
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = Color(0xFFDC2626)
+                                            ),
+                                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(28.dp)
+                                        ) {
+                                            Text("Disconnect", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -245,17 +326,17 @@ fun KdsConnectionDialog(
                 ) {
                     Text(
                         text = "Discovered Kitchen Devices",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                     )
                     IconButton(
                         onClick = { orderSyncManager.discoveryManager.startDiscovery() },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh Devices",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -267,61 +348,115 @@ fun KdsConnectionDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(12.dp),
+                            modifier = Modifier.padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             if (isDiscovering) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp))
                             }
                             Text(
-                                text = if (isDiscovering) "Searching on local Wi-Fi..." else "No KDS device found yet",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = if (isDiscovering) "Searching for kitchen screens on local Wi-Fi..." else "No kitchen screens found automatically",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.heightIn(max = 140.dp)
                     ) {
                         items(discoveredServices) { service ->
+                            val isConnected = orderSyncManager.connectionManager.isKdsConnected(service.hostIp, service.port)
+                            val isConnecting = orderSyncManager.connectionManager.isKdsConnecting(service.hostIp, service.port)
+
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        orderSyncManager.connectionManager.connectToKds(service.hostIp, service.port)
-                                    }
+                                color = if (isConnected) Color(0xFFF0FDF4) else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (isConnected) BorderStroke(1.dp, Color(0xFFBBF7D0)) else null,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(10.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = service.serviceName,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                                        )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = service.serviceName,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = if (isConnected) Color(0xFF166534) else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (isConnected) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFFDCFCE7),
+                                                    modifier = Modifier.padding(start = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Connected",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF16A34A),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Text(
                                             text = "${service.hostIp}:${service.port}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    Button(
-                                        onClick = {
-                                            orderSyncManager.connectionManager.connectToKds(service.hostIp, service.port)
-                                        },
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("Connect")
+
+                                    // Requirement 2:
+                                    // Don't show connect button for connected devices in the list.
+                                    // If device connected ONLY show disconnect button!
+                                    if (isConnected) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                orderSyncManager.connectionManager.disconnectFromKds(service.hostIp, service.port)
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = Color(0xFFDC2626)
+                                            ),
+                                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("Disconnect", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                orderSyncManager.connectionManager.connectToKds(service.hostIp, service.port, service.serviceName)
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp),
+                                            enabled = !isConnecting
+                                        ) {
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(12.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("Connecting...", fontSize = 11.sp)
+                                            } else {
+                                                Text("Connect", fontSize = 11.sp)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -329,11 +464,11 @@ fun KdsConnectionDialog(
                     }
                 }
 
-                // Manual IP Fallback
+                // Manual IP Fallback / Add Screen via IP
                 val localIp = remember { orderSyncManager.discoveryManager.getLocalIpAddress() }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Or Connect via Manual IP",
+                        text = "Or Connect Screen via Manual IP",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Text(
@@ -366,27 +501,48 @@ fun KdsConnectionDialog(
                     )
                 }
 
-                Button(
-                    onClick = {
-                        val port = manualPort.toIntOrNull() ?: 8080
-                        if (manualIp.isNotBlank()) {
-                            orderSyncManager.connectionManager.connectToKds(manualIp.trim(), port)
+                val manualTargetPort = manualPort.toIntOrNull() ?: 8080
+                val isManualTargetConnected = manualIp.isNotBlank() && orderSyncManager.connectionManager.isKdsConnected(manualIp.trim(), manualTargetPort)
+                val isManualTargetConnecting = manualIp.isNotBlank() && orderSyncManager.connectionManager.isKdsConnecting(manualIp.trim(), manualTargetPort)
+
+                if (isManualTargetConnected) {
+                    OutlinedButton(
+                        onClick = {
+                            orderSyncManager.connectionManager.disconnectFromKds(manualIp.trim(), manualTargetPort)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+                    ) {
+                        Text("Disconnect $manualIp:$manualTargetPort")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (manualIp.isNotBlank()) {
+                                orderSyncManager.connectionManager.connectToKds(
+                                    rawHost = manualIp.trim(),
+                                    rawPort = manualTargetPort,
+                                    name = "Kitchen Display ${connectedScreens.size + 1}"
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = manualIp.isNotBlank() && !isManualTargetConnecting
+                    ) {
+                        if (isManualTargetConnecting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Connecting...")
+                        } else {
+                            Text(if (connectedScreens.isNotEmpty()) "Connect Additional Screen (+ Share)" else "Connect via IP")
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = manualIp.isNotBlank() && connectionStatus != ConnectionStatus.CONNECTING
-                ) {
-                    if (connectionStatus == ConnectionStatus.CONNECTING) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Connecting...")
-                    } else {
-                        Text("Connect via IP")
                     }
                 }
             }

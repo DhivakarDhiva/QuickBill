@@ -139,6 +139,7 @@ class MainActivity : ComponentActivity() {
                     val currentUser by app.authRepository.currentUser.collectAsState()
                     val isOnline by app.networkMonitor.isOnline.collectAsState(initial = true)
                     val kdsStatus by app.orderSyncManager.connectionManager.connectionStatus.collectAsState()
+                    val connectedKdsScreens by app.orderSyncManager.connectionManager.connectedKdsScreens.collectAsState()
                     val kdsPendingCount by app.orderSyncManager.outboxManager.pendingCountFlow.collectAsState(initial = 0)
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route 
@@ -358,6 +359,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     kdsStatus = kdsStatus,
                                     kdsPendingCount = kdsPendingCount,
+                                    connectedKdsCount = connectedKdsScreens.size,
                                     onLogoutClick = {
                                         performLogout()
                                     }

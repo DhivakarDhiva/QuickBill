@@ -1,6 +1,10 @@
 package com.quickbill.pos.network.kds
 
+import android.os.Build
 import android.util.Log
+import com.quickbill.pos.data.model.kds.ConnectedKdsScreen
+import com.quickbill.pos.data.model.kds.ConnectedPosTerminal
+import com.quickbill.pos.data.model.kds.OrderEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,6 +20,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.java_websocket.WebSocket
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 
 enum class ConnectionStatus {
     DISCONNECTED,
@@ -23,6 +28,20 @@ enum class ConnectionStatus {
     CONNECTED,
     RECONNECTING
 }
+
+private data class PosConnectionEntry(
+    val id: String, // "host:port"
+    val host: String,
+    val port: Int,
+    var name: String = "Kitchen Display",
+    var client: PosWebSocketClient? = null,
+    var status: ConnectionStatus = ConnectionStatus.CONNECTING,
+    var connectedAt: Long = 0L,
+    var userDisconnected: Boolean = false,
+    var reconnectAttempts: Int = 0,
+    var reconnectJob: Job? = null,
+    var lastError: String = ""
+)
 
 class ConnectionManager {
 
@@ -35,20 +54,20 @@ class ConnectionManager {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // --- POS Client State ---
-    private var client: PosWebSocketClient? = null
-    private var reconnectJob: Job? = null
+    // --- POS Multi-KDS Client State ---
+    private val connections = ConcurrentHashMap<String, PosConnectionEntry>()
     private var heartbeatJob: Job? = null
     private var currentHost: String = ""
     private var currentPort: Int = 8080
-    private var userDisconnected: Boolean = false
-    private var reconnectAttempts: Int = 0
 
     private val _connectionStatus = MutableStateFlow(ConnectionStatus.DISCONNECTED)
     val connectionStatus: StateFlow<ConnectionStatus> = _connectionStatus.asStateFlow()
 
     private val _connectedServerAddress = MutableStateFlow("")
     val connectedServerAddress: StateFlow<String> = _connectedServerAddress.asStateFlow()
+
+    private val _connectedKdsScreens = MutableStateFlow<List<ConnectedKdsScreen>>(emptyList())
+    val connectedKdsScreens: StateFlow<List<ConnectedKdsScreen>> = _connectedKdsScreens.asStateFlow()
 
     private val _lastErrorMessage = MutableStateFlow("")
     val lastErrorMessage: StateFlow<String> = _lastErrorMessage.asStateFlow()
@@ -68,6 +87,9 @@ class ConnectionManager {
 
     private val _connectedClientsCount = MutableStateFlow(0)
     val connectedClientsCount: StateFlow<Int> = _connectedClientsCount.asStateFlow()
+
+    private val _connectedPosTerminals = MutableStateFlow<List<ConnectedPosTerminal>>(emptyList())
+    val connectedPosTerminals: StateFlow<List<ConnectedPosTerminal>> = _connectedPosTerminals.asStateFlow()
 
     // Stream of incoming messages received on KDS server with origin socket
     private val _serverIncomingMessages = MutableSharedFlow<Pair<String, WebSocket>>(extraBufferCapacity = 64)
@@ -101,6 +123,9 @@ class ConnectionManager {
                 onClientCountChanged = { count ->
                     _connectedClientsCount.value = count
                 },
+                onTerminalsChanged = { terminals ->
+                    _connectedPosTerminals.value = terminals
+                },
                 onServerError = { ex ->
                     Log.e(TAG, "KDS WebSocket Server socket error on port $port: ${ex.message}", ex)
                     _isServerRunning.value = false
@@ -132,6 +157,7 @@ class ConnectionManager {
         server = null
         _isServerRunning.value = false
         _connectedClientsCount.value = 0
+        _connectedPosTerminals.value = emptyList()
         if (oldServer != null) {
             try {
                 oldServer.stopServer()
@@ -152,23 +178,18 @@ class ConnectionManager {
     }
 
     // ==========================================
-    // POS Client Methods
+    // POS Multi-Client Helper Methods
     // ==========================================
-    fun connectToKds(rawHost: String, rawPort: Int = 8080) {
-        var host = rawHost.trim()
-        if (host.isBlank()) return
 
-        // Strip scheme if user typed ws:// or http://
+    private fun parseHostAndPort(rawHost: String, rawPort: Int): Pair<String, Int> {
+        var host = rawHost.trim()
         if (host.startsWith("ws://", ignoreCase = true)) host = host.substring(5)
         else if (host.startsWith("wss://", ignoreCase = true)) host = host.substring(6)
         else if (host.startsWith("http://", ignoreCase = true)) host = host.substring(7)
         else if (host.startsWith("https://", ignoreCase = true)) host = host.substring(8)
-
-        // Strip leading slash
         host = host.removePrefix("/")
 
         var port = rawPort
-        // Check if host contains embedded port like 192.168.1.4:8080 (and not IPv6 with multiple colons)
         if (host.contains(":") && !host.startsWith("[") && host.indexOf(":") == host.lastIndexOf(":")) {
             val parts = host.split(":")
             if (parts.size == 2 && parts[1].toIntOrNull() != null) {
@@ -176,83 +197,195 @@ class ConnectionManager {
                 port = parts[1].toInt()
             }
         }
+        return Pair(host, if (port > 0) port else 8080)
+    }
 
-        userDisconnected = false
+    private fun updateClientStateFlows() {
+        val entries = connections.values.toList()
+        val connectedList = entries.filter { it.status == ConnectionStatus.CONNECTED }
+
+        _connectedKdsScreens.value = entries.map { entry ->
+            ConnectedKdsScreen(
+                id = entry.id,
+                name = entry.name,
+                host = entry.host,
+                port = entry.port,
+                status = entry.status.name,
+                connectedAt = entry.connectedAt
+            )
+        }
+
+        if (connectedList.isNotEmpty()) {
+            _connectionStatus.value = ConnectionStatus.CONNECTED
+            _connectedServerAddress.value = if (connectedList.size == 1) {
+                "${connectedList[0].host}:${connectedList[0].port}"
+            } else {
+                "${connectedList.size} Screens Connected"
+            }
+        } else {
+            val anyConnecting = entries.any {
+                it.status == ConnectionStatus.CONNECTING || it.status == ConnectionStatus.RECONNECTING
+            }
+            if (anyConnecting) {
+                _connectionStatus.value = ConnectionStatus.CONNECTING
+            } else {
+                _connectionStatus.value = ConnectionStatus.DISCONNECTED
+            }
+            _connectedServerAddress.value = ""
+        }
+    }
+
+    fun isKdsConnected(rawHost: String, rawPort: Int = 8080): Boolean {
+        val (host, port) = parseHostAndPort(rawHost, rawPort)
+        val key = "$host:$port"
+        return connections[key]?.status == ConnectionStatus.CONNECTED
+    }
+
+    fun isKdsConnecting(rawHost: String, rawPort: Int = 8080): Boolean {
+        val (host, port) = parseHostAndPort(rawHost, rawPort)
+        val key = "$host:$port"
+        val status = connections[key]?.status
+        return status == ConnectionStatus.CONNECTING || status == ConnectionStatus.RECONNECTING
+    }
+
+    // ==========================================
+    // POS Multi-KDS Connection Methods
+    // ==========================================
+    fun connectToKds(rawHost: String, rawPort: Int = 8080, name: String = "Kitchen Display") {
+        val (host, port) = parseHostAndPort(rawHost, rawPort)
+        if (host.isBlank()) return
+
         currentHost = host
-        currentPort = if (port > 0) port else 8080
-        reconnectAttempts = 0
-        _lastErrorMessage.value = ""
+        currentPort = port
+        val key = "$host:$port"
 
-        disconnectClientInternal()
-        initiateClientConnection()
+        val existing = connections[key]
+        if (existing != null && existing.status == ConnectionStatus.CONNECTED) {
+            Log.i(TAG, "Already connected to KDS at $key")
+            return
+        }
+
+        val entry = existing?.apply {
+            this.name = name
+            this.userDisconnected = false
+            this.reconnectAttempts = 0
+            this.status = ConnectionStatus.CONNECTING
+        } ?: PosConnectionEntry(
+            id = key,
+            host = host,
+            port = port,
+            name = name,
+            status = ConnectionStatus.CONNECTING
+        )
+
+        connections[key] = entry
+        _lastErrorMessage.value = ""
+        updateClientStateFlows()
+
+        initiateEntryConnection(entry)
+    }
+
+    fun disconnectFromKds(rawHost: String, rawPort: Int = 8080) {
+        val (host, port) = parseHostAndPort(rawHost, rawPort)
+        val key = "$host:$port"
+        val entry = connections[key] ?: return
+
+        entry.userDisconnected = true
+        entry.reconnectJob?.cancel()
+        entry.reconnectJob = null
+        try {
+            entry.client?.detachAndClose()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing client for $key", e)
+        }
+        entry.client = null
+        connections.remove(key)
+        updateClientStateFlows()
+        Log.i(TAG, "Disconnected from KDS screen at $key")
     }
 
     fun reconnect() {
-        if (currentHost.isNotBlank()) {
-            userDisconnected = false
-            reconnectAttempts = 0
-            _lastErrorMessage.value = ""
-            reconnectJob?.cancel()
-            reconnectJob = null
-            disconnectClientInternal()
-            initiateClientConnection()
+        if (connections.isNotEmpty()) {
+            connections.values.forEach { entry ->
+                entry.userDisconnected = false
+                entry.reconnectAttempts = 0
+                entry.reconnectJob?.cancel()
+                entry.reconnectJob = null
+                initiateEntryConnection(entry)
+            }
+        } else if (currentHost.isNotBlank()) {
+            connectToKds(currentHost, currentPort)
         }
     }
 
-    private fun initiateClientConnection() {
-        if (userDisconnected) return
+    private fun initiateEntryConnection(entry: PosConnectionEntry) {
+        if (entry.userDisconnected) return
 
-        val formattedHost = if (currentHost.contains(":") && !currentHost.startsWith("[")) {
-            "[$currentHost]"
+        val formattedHost = if (entry.host.contains(":") && !entry.host.startsWith("[")) {
+            "[${entry.host}]"
         } else {
-            currentHost
+            entry.host
         }
-        val uriStr = "ws://$formattedHost:$currentPort"
+        val uriStr = "ws://$formattedHost:${entry.port}"
         val serverUri = try {
             URI(uriStr)
         } catch (e: Exception) {
             Log.e(TAG, "Invalid URI: $uriStr", e)
-            _lastErrorMessage.value = "Invalid server address: $uriStr"
-            _connectionStatus.value = ConnectionStatus.DISCONNECTED
+            entry.lastError = "Invalid server address: $uriStr"
+            entry.status = ConnectionStatus.DISCONNECTED
+            updateClientStateFlows()
             return
         }
 
-        _connectionStatus.value = if (reconnectAttempts > 0) ConnectionStatus.RECONNECTING else ConnectionStatus.CONNECTING
+        entry.status = if (entry.reconnectAttempts > 0) ConnectionStatus.RECONNECTING else ConnectionStatus.CONNECTING
+        updateClientStateFlows()
 
-        Log.i(TAG, "Connecting to KDS at $serverUri (attempt $reconnectAttempts)...")
+        Log.i(TAG, "Connecting to KDS (${entry.name}) at $serverUri (attempt ${entry.reconnectAttempts})...")
 
         val newClient = PosWebSocketClient(
             serverUri = serverUri,
             onConnected = {
-                reconnectAttempts = 0
-                _connectionStatus.value = ConnectionStatus.CONNECTED
-                _connectedServerAddress.value = "$currentHost:$currentPort"
-                _lastErrorMessage.value = ""
-                Log.i(TAG, "Successfully connected to KDS at $currentHost:$currentPort")
+                entry.reconnectAttempts = 0
+                entry.status = ConnectionStatus.CONNECTED
+                entry.connectedAt = System.currentTimeMillis()
+                entry.lastError = ""
+                updateClientStateFlows()
+                Log.i(TAG, "Successfully connected to KDS screen ${entry.name} at ${entry.id}")
+
+                // Send POS_HELLO event handshake to register POS identity with KDS
+                val helloEvent = OrderEvent.createPosHelloEvent(
+                    terminalName = "QuickBill POS",
+                    deviceModel = Build.MODEL ?: "Android POS",
+                    ipAddress = ""
+                )
+                try {
+                    entry.client?.send(helloEvent.toJson().toString())
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to send POS_HELLO to ${entry.id}", e)
+                }
+
                 startHeartbeat()
             },
             onDisconnected = { details ->
-                stopHeartbeat()
-                _connectedServerAddress.value = ""
-                
+                entry.status = ConnectionStatus.DISCONNECTED
                 val userFriendlyError = when {
                     details.contains("ETIMEDOUT", ignoreCase = true) ->
-                        "Connection timed out. Verify both devices are on the same Wi-Fi and the IP ($currentHost) is reachable."
+                        "Connection timed out to ${entry.name} (${entry.host})."
                     details.contains("ECONNREFUSED", ignoreCase = true) ->
-                        "Connection refused on port $currentPort. Make sure QuickKitchen KDS is running on the target device."
+                        "Connection refused on port ${entry.port}. Verify QuickKitchen KDS is running."
                     details.contains("ECONNABORTED", ignoreCase = true) ->
-                        "Connection aborted by network. Verify Wi-Fi network routing."
+                        "Connection aborted by network for ${entry.name}."
                     details.contains("Cleartext", ignoreCase = true) ->
                         "Cleartext traffic blocked by network security policy."
                     else -> details
                 }
+                entry.lastError = userFriendlyError
                 _lastErrorMessage.value = userFriendlyError
-                Log.w(TAG, "Disconnected from KDS: $userFriendlyError")
+                Log.w(TAG, "Disconnected from KDS ${entry.name}: $userFriendlyError")
+                updateClientStateFlows()
 
-                if (!userDisconnected) {
-                    scheduleReconnect()
-                } else {
-                    _connectionStatus.value = ConnectionStatus.DISCONNECTED
+                if (!entry.userDisconnected) {
+                    scheduleEntryReconnect(entry)
                 }
             },
             onMessageReceived = { msg ->
@@ -261,58 +394,61 @@ class ConnectionManager {
                 }
             },
             onErrorOccurred = { ex ->
-                stopHeartbeat()
-                Log.e(TAG, "Client socket error: ${ex.message}")
+                Log.e(TAG, "Client socket error for ${entry.id}: ${ex.message}")
             }
         ).apply {
             setConnectionLostTimeout(15)
         }
 
-        client = newClient
+        entry.client = newClient
 
         try {
             newClient.connect()
         } catch (e: Exception) {
-            Log.e(TAG, "Client connect exception", e)
-            _lastErrorMessage.value = e.message ?: "Failed to initiate connection"
-            scheduleReconnect()
+            Log.e(TAG, "Client connect exception for ${entry.id}", e)
+            entry.lastError = e.message ?: "Failed to initiate connection"
+            scheduleEntryReconnect(entry)
         }
     }
 
-    private fun scheduleReconnect() {
-        if (userDisconnected) return
-        if (currentHost.isBlank()) {
-            _connectionStatus.value = ConnectionStatus.DISCONNECTED
-            return
-        }
+    private fun scheduleEntryReconnect(entry: PosConnectionEntry) {
+        if (entry.userDisconnected) return
 
-        _connectionStatus.value = ConnectionStatus.RECONNECTING
-        reconnectJob?.cancel()
+        entry.status = ConnectionStatus.RECONNECTING
+        entry.reconnectJob?.cancel()
 
-        reconnectAttempts++
-        val delayMs = (BASE_RECONNECT_DELAY_MS * (1 shl (reconnectAttempts - 1).coerceAtMost(3)))
+        entry.reconnectAttempts++
+        val delayMs = (BASE_RECONNECT_DELAY_MS * (1 shl (entry.reconnectAttempts - 1).coerceAtMost(3)))
             .coerceAtMost(MAX_RECONNECT_DELAY_MS)
 
-        Log.i(TAG, "Scheduling reconnect attempt $reconnectAttempts in ${delayMs}ms to $currentHost:$currentPort")
+        Log.i(TAG, "Scheduling reconnect attempt ${entry.reconnectAttempts} in ${delayMs}ms to ${entry.id}")
 
-        reconnectJob = scope.launch {
+        entry.reconnectJob = scope.launch {
             delay(delayMs)
-            if (!userDisconnected && isActive) {
-                disconnectClientInternal()
-                initiateClientConnection()
+            if (!entry.userDisconnected && isActive) {
+                try {
+                    entry.client?.detachAndClose()
+                } catch (_: Exception) {}
+                entry.client = null
+                initiateEntryConnection(entry)
             }
         }
     }
 
     private fun startHeartbeat() {
-        heartbeatJob?.cancel()
+        if (heartbeatJob?.isActive == true) return
         heartbeatJob = scope.launch {
-            while (isActive && _connectionStatus.value == ConnectionStatus.CONNECTED) {
+            while (isActive && connections.values.any { it.status == ConnectionStatus.CONNECTED }) {
                 delay(PING_INTERVAL_MS)
-                try {
-                    client?.sendPing()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to send ping", e)
+                connections.values.forEach { entry ->
+                    val activeClient = entry.client
+                    if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
+                        try {
+                            activeClient.sendPing()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to send ping to ${entry.id}", e)
+                        }
+                    }
                 }
             }
         }
@@ -324,37 +460,41 @@ class ConnectionManager {
     }
 
     fun disconnectClient() {
-        userDisconnected = true
-        disconnectClientInternal()
+        connections.values.forEach { entry ->
+            entry.userDisconnected = true
+            entry.reconnectJob?.cancel()
+            entry.reconnectJob = null
+            try {
+                entry.client?.detachAndClose()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error closing client for ${entry.id}", e)
+            }
+            entry.client = null
+        }
+        connections.clear()
+        stopHeartbeat()
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
         _connectedServerAddress.value = ""
+        _connectedKdsScreens.value = emptyList()
     }
 
-    private fun disconnectClientInternal() {
-        reconnectJob?.cancel()
-        reconnectJob = null
-        stopHeartbeat()
-
-        try {
-            client?.detachAndClose()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error closing client", e)
-        }
-        client = null
-    }
-
+    /**
+     * Broadcasts a message from POS to all connected KDS screens.
+     * Returns true if sent to at least one KDS screen.
+     */
     fun sendFromClient(message: String): Boolean {
-        val activeClient = client
-        return if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
-            try {
-                activeClient.send(message)
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending from client", e)
-                false
+        var deliveredToAny = false
+        for (entry in connections.values) {
+            val activeClient = entry.client
+            if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
+                try {
+                    activeClient.send(message)
+                    deliveredToAny = true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending from client to ${entry.id}", e)
+                }
             }
-        } else {
-            false
         }
+        return deliveredToAny
     }
 }

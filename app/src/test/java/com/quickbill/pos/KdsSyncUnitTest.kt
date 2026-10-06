@@ -1,5 +1,7 @@
 package com.quickbill.pos
 
+import com.quickbill.pos.data.model.kds.ConnectedKdsScreen
+import com.quickbill.pos.data.model.kds.ConnectedPosTerminal
 import com.quickbill.pos.data.model.kds.KitchenOrder
 import com.quickbill.pos.data.model.kds.KitchenOrderItem
 import com.quickbill.pos.data.model.kds.OrderEvent
@@ -330,4 +332,102 @@ class KdsSyncUnitTest {
         // Order created 10 minutes ago, but CANCELLED: NOT overdue!
         assertFalse(isOrderOverdue(OrderStatus.CANCELLED, completedLateOrder, currentTime, warningThresholdMinutes))
     }
+
+    // -------------------------------------------------------------
+    // Test 11: POS_HELLO Event Creation and Parsing
+    // -------------------------------------------------------------
+    @Test
+    fun test11_posHelloEventCreationAndParsing() {
+        val helloEvent = OrderEvent.createPosHelloEvent(
+            terminalName = "Main Counter POS",
+            deviceModel = "Pixel 7 Pro",
+            ipAddress = "192.168.1.15"
+        )
+
+        assertEquals(OrderEventType.POS_HELLO, helloEvent.eventType)
+        assertEquals("", helloEvent.orderId)
+        assertTrue(helloEvent.payloadJson.isNotBlank())
+
+        val payload = JSONObject(helloEvent.payloadJson)
+        assertEquals("Main Counter POS", payload.getString("terminalName"))
+        assertEquals("Pixel 7 Pro", payload.getString("deviceModel"))
+        assertEquals("192.168.1.15", payload.getString("ipAddress"))
+
+        // Roundtrip serialization
+        val eventJson = helloEvent.toJson()
+        val parsedEvent = OrderEvent.fromJson(eventJson)
+        assertEquals(OrderEventType.POS_HELLO, parsedEvent.eventType)
+        assertEquals(helloEvent.eventId, parsedEvent.eventId)
+    }
+
+    // -------------------------------------------------------------
+    // Test 12: ConnectedPosTerminal Serialization
+    // -------------------------------------------------------------
+    @Test
+    fun test12_connectedPosTerminalSerialization() {
+        val terminal = ConnectedPosTerminal(
+            id = "192.168.1.15:52134",
+            name = "QuickBill POS Terminal",
+            ipAddress = "192.168.1.15",
+            port = 52134,
+            deviceModel = "Samsung Galaxy Tab",
+            connectedAt = 1770000000000L
+        )
+
+        val json = terminal.toJson()
+        val parsed = ConnectedPosTerminal.fromJson(json)
+
+        assertEquals(terminal.id, parsed.id)
+        assertEquals(terminal.name, parsed.name)
+        assertEquals(terminal.ipAddress, parsed.ipAddress)
+        assertEquals(terminal.port, parsed.port)
+        assertEquals(terminal.deviceModel, parsed.deviceModel)
+        assertEquals(terminal.connectedAt, parsed.connectedAt)
+    }
+
+    // -------------------------------------------------------------
+    // Test 13: ConnectedKdsScreen Model and State
+    // -------------------------------------------------------------
+    @Test
+    fun test13_connectedKdsScreenModel() {
+        val screen1 = ConnectedKdsScreen(
+            id = "192.168.1.20:8080",
+            name = "Main Kitchen",
+            host = "192.168.1.20",
+            port = 8080,
+            status = "CONNECTED"
+        )
+        val screen2 = ConnectedKdsScreen(
+            id = "192.168.1.21:8080",
+            name = "Drinks & Bar Display",
+            host = "192.168.1.21",
+            port = 8080,
+            status = "CONNECTED"
+        )
+
+        val screens = listOf(screen1, screen2)
+        assertEquals(2, screens.size)
+        assertEquals("Main Kitchen", screens[0].name)
+        assertEquals("Drinks & Bar Display", screens[1].name)
+    }
+
+    // -------------------------------------------------------------
+    // Test 14: Smart Connect / Disconnect button state logic
+    // -------------------------------------------------------------
+    @Test
+    fun test14_smartConnectDisconnectButtonStateLogic() {
+        val connectedHosts = setOf("192.168.1.50:8080", "192.168.1.51:8080")
+
+        fun shouldShowDisconnectOnly(host: String, port: Int): Boolean {
+            return connectedHosts.contains("$host:$port")
+        }
+
+        // Host 1: Already connected -> MUST show Disconnect only, Connect hidden!
+        assertTrue(shouldShowDisconnectOnly("192.168.1.50", 8080))
+        // Host 2: Already connected -> MUST show Disconnect only, Connect hidden!
+        assertTrue(shouldShowDisconnectOnly("192.168.1.51", 8080))
+        // Host 3: Not connected -> Show Connect button
+        assertFalse(shouldShowDisconnectOnly("192.168.1.52", 8080))
+    }
 }
+

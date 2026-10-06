@@ -234,6 +234,10 @@ class OrderSyncManager(
                     } catch (_: Exception) {}
                 }
 
+                OrderEventType.POS_HELLO -> {
+                    Log.i(TAG, "Server acknowledged POS_HELLO handshake from terminal")
+                }
+
                 else -> {
                     Log.d(TAG, "Server received unhandled event: ${event.eventType}")
                 }

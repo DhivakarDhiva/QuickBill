@@ -37,6 +37,7 @@ fun QuickKitchenScreen(
 
     // Live elapsed timer ticking every 1000ms
     var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showConnectedPosDetailsDialog by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000L)
@@ -123,6 +124,7 @@ fun QuickKitchenScreen(
             KitchenSettingsScreen(
                 settings = uiState.settings,
                 isConnected = uiState.connectedClients > 0,
+                connectedTerminals = uiState.connectedPosTerminals,
                 currentThemeMode = currentThemeMode,
                 onThemeChange = { mode -> themeRepository?.setThemeMode(mode) },
                 onBackClick = { viewModel.selectNavTab(0) },
@@ -140,7 +142,8 @@ fun QuickKitchenScreen(
                 topBar = {
                     QuickKitchenHeader(
                         kitchenName = uiState.kitchenName,
-                        isConnected = uiState.connectedClients > 0
+                        isConnected = uiState.connectedClients > 0,
+                        onConnectionClick = { showConnectedPosDetailsDialog = true }
                     )
                 },
                 bottomBar = {
@@ -255,5 +258,16 @@ fun QuickKitchenScreen(
                 }
             }
         }
+    }
+
+    if (showConnectedPosDetailsDialog) {
+        ConnectedPosDetailsDialog(
+            kitchenName = uiState.kitchenName,
+            serverIp = uiState.serverIp,
+            serverPort = uiState.serverPort,
+            isConnected = uiState.connectedClients > 0,
+            connectedTerminals = uiState.connectedPosTerminals,
+            onDismiss = { showConnectedPosDetailsDialog = false }
+        )
     }
 }

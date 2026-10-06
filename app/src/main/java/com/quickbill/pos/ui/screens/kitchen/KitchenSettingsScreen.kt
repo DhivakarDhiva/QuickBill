@@ -26,10 +26,13 @@ import com.quickbill.pos.data.repository.AppThemeMode
 import com.quickbill.pos.data.repository.KdsSettings
 import com.quickbill.pos.ui.components.AppearanceDialog
 
+import com.quickbill.pos.data.model.kds.ConnectedPosTerminal
+
 @Composable
 fun KitchenSettingsScreen(
     settings: KdsSettings,
     isConnected: Boolean,
+    connectedTerminals: List<ConnectedPosTerminal> = emptyList(),
     currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeChange: (AppThemeMode) -> Unit = {},
     onBackClick: () -> Unit,
@@ -312,7 +315,13 @@ fun KitchenSettingsScreen(
                                         .background(if (isConnected) QuickKitchenTheme.GreenLight else QuickKitchenTheme.RedPrimary)
                                 )
                                 Text(
-                                    text = if (isConnected) "Connected" else "Waiting...",
+                                    text = if (isConnected) {
+                                        if (connectedTerminals.isNotEmpty()) {
+                                            "Connected (${connectedTerminals.size} POS)"
+                                        } else {
+                                            "Connected"
+                                        }
+                                    } else "Waiting...",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp,
@@ -320,6 +329,115 @@ fun KitchenSettingsScreen(
                                     )
                                 )
                             }
+                        }
+
+                        // Connected POS Terminals Details List
+                        if (connectedTerminals.isNotEmpty()) {
+                            HorizontalDivider(
+                                color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                            Text(
+                                text = "Connected POS Terminals (${connectedTerminals.size})",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuickKitchenTheme.TextPrimary,
+                                    fontSize = 12.sp
+                                )
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                connectedTerminals.forEach { terminal ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = QuickKitchenTheme.Background,
+                                        border = BorderStroke(0.5.dp, QuickKitchenTheme.BorderSubtle),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(32.dp)
+                                                        .clip(CircleShape)
+                                                        .background(QuickKitchenTheme.GreenPillBg),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.PointOfSale,
+                                                        contentDescription = null,
+                                                        tint = QuickKitchenTheme.GreenPrimary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                Column {
+                                                    Text(
+                                                        text = terminal.name.ifBlank { "POS Terminal" },
+                                                        style = MaterialTheme.typography.bodySmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = QuickKitchenTheme.TextPrimary
+                                                        )
+                                                    )
+                                                    if (terminal.deviceModel.isNotBlank()) {
+                                                        Text(
+                                                            text = terminal.deviceModel,
+                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                color = QuickKitchenTheme.TextSecondary,
+                                                                fontSize = 10.sp
+                                                            )
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = "${terminal.ipAddress}:${terminal.port}",
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            color = QuickKitchenTheme.TextMuted,
+                                                            fontSize = 10.sp
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(QuickKitchenTheme.GreenLight)
+                                                )
+                                                Text(
+                                                    text = "Synced",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        color = QuickKitchenTheme.GreenPrimary,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontSize = 11.sp
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (isConnected) {
+                            HorizontalDivider(
+                                color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                            Text(
+                                text = "1 POS device connected via WebSocket",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = QuickKitchenTheme.TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            )
                         }
                     }
                 }

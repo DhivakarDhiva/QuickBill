@@ -39,7 +39,8 @@ fun QuickBillTopBar(
     onKdsClick: () -> Unit = {},
     onChangeDeviceModeClick: () -> Unit = {},
     kdsStatus: com.quickbill.pos.network.kds.ConnectionStatus = com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED,
-    kdsPendingCount: Int = 0
+    kdsPendingCount: Int = 0,
+    connectedKdsCount: Int = 0
 ) {
     var showUserMenu by remember { mutableStateOf(false) }
 
@@ -166,7 +167,7 @@ fun QuickBillTopBar(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = when (kdsStatus) {
-                                com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> "KDS"
+                                com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> if (connectedKdsCount > 1) "KDS ($connectedKdsCount)" else "KDS"
                                 com.quickbill.pos.network.kds.ConnectionStatus.CONNECTING,
                                 com.quickbill.pos.network.kds.ConnectionStatus.RECONNECTING -> "KDS..."
                                 com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED -> if (kdsPendingCount > 0) "KDS ($kdsPendingCount)" else "KDS"

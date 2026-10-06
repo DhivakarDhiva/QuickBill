@@ -22,9 +22,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.quickbill.pos.data.model.kds.ConnectedPosTerminal
 import com.quickbill.pos.data.model.kds.KitchenOrder
 import com.quickbill.pos.data.model.kds.KitchenOrderItem
 import com.quickbill.pos.data.model.kds.OrderStatus
+import androidx.compose.ui.window.Dialog
 import java.util.Locale
 
 // =========================================================================
@@ -60,6 +62,7 @@ fun ChefHatBadge(
 fun QuickKitchenHeader(
     kitchenName: String,
     isConnected: Boolean,
+    onConnectionClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -100,8 +103,9 @@ fun QuickKitchenHeader(
                 }
             }
 
-            // Right: Connected Pill
+            // Right: Connected Pill (Clickable to view connected POS terminal details)
             Surface(
+                onClick = onConnectionClick,
                 shape = RoundedCornerShape(16.dp),
                 color = if (isConnected) QuickKitchenTheme.GreenPillBg else QuickKitchenTheme.RedPillBg,
                 border = BorderStroke(1.dp, if (isConnected) Color(0xFFBBF7D0) else Color(0xFFFECACA))
@@ -113,7 +117,7 @@ fun QuickKitchenHeader(
                 ) {
                     Icon(
                         imageVector = if (isConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
-                        contentDescription = null,
+                        contentDescription = "Connection Status",
                         tint = if (isConnected) QuickKitchenTheme.GreenPillText else QuickKitchenTheme.RedPillText,
                         modifier = Modifier.size(14.dp)
                     )
@@ -124,6 +128,12 @@ fun QuickKitchenHeader(
                             fontSize = 12.sp,
                             color = if (isConnected) QuickKitchenTheme.GreenPillText else QuickKitchenTheme.RedPillText
                         )
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Details",
+                        tint = if (isConnected) QuickKitchenTheme.GreenPillText.copy(alpha = 0.7f) else QuickKitchenTheme.RedPillText.copy(alpha = 0.7f),
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
@@ -602,3 +612,351 @@ private fun BottomNavItem(
         )
     }
 }
+
+// =========================================================================
+// Connected POS Terminals Details Dialog (Requirement 3)
+// Triggered by clicking the connected network badge in QuickKitchenHeader
+// =========================================================================
+@Composable
+fun ConnectedPosDetailsDialog(
+    kitchenName: String,
+    serverIp: String,
+    serverPort: Int,
+    isConnected: Boolean,
+    connectedTerminals: List<ConnectedPosTerminal>,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = QuickKitchenTheme.Surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header with icon and close button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isConnected) QuickKitchenTheme.GreenPillBg else QuickKitchenTheme.RedPillBg,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
+                                    contentDescription = null,
+                                    tint = if (isConnected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.RedPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "POS Connection Info",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = QuickKitchenTheme.TextPrimary
+                                )
+                            )
+                            Text(
+                                text = if (isConnected) "${if (connectedTerminals.isNotEmpty()) connectedTerminals.size else 1} POS terminal(s) connected" else "Waiting for POS connection",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 12.sp,
+                                    color = QuickKitchenTheme.TextSecondary
+                                )
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = QuickKitchenTheme.TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Station Local Server Card
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = QuickKitchenTheme.Background,
+                    border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Kitchen Station",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = QuickKitchenTheme.TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            )
+                            Text(
+                                text = kitchenName,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = QuickKitchenTheme.TextPrimary
+                                )
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "KDS Server IP & Port",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = QuickKitchenTheme.TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            )
+                            Text(
+                                text = "$serverIp:$serverPort",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuickKitchenTheme.GreenPrimary
+                                )
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Network Discovery",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = QuickKitchenTheme.TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            )
+                            Text(
+                                text = "QuickKitchen-KDS (NSD Active)",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = QuickKitchenTheme.TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Connected Terminals Section
+                Text(
+                    text = "Connected POS Terminals",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = QuickKitchenTheme.TextPrimary
+                    )
+                )
+
+                if (connectedTerminals.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        connectedTerminals.forEach { terminal ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = QuickKitchenTheme.Background,
+                                border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = QuickKitchenTheme.GreenPillBg,
+                                            modifier = Modifier.size(40.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PointOfSale,
+                                                    contentDescription = null,
+                                                    tint = QuickKitchenTheme.GreenPrimary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Column {
+                                            Text(
+                                                text = terminal.name.ifBlank { "POS Terminal" },
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = QuickKitchenTheme.TextPrimary
+                                                )
+                                            )
+                                            if (terminal.deviceModel.isNotBlank()) {
+                                                Text(
+                                                    text = "Device: ${terminal.deviceModel}",
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        fontSize = 11.sp,
+                                                        color = QuickKitchenTheme.TextSecondary
+                                                    )
+                                                )
+                                            }
+                                            Text(
+                                                text = "IP: ${terminal.ipAddress}:${terminal.port}",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 11.sp,
+                                                    color = QuickKitchenTheme.TextMuted
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    // Synced Badge
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = QuickKitchenTheme.GreenPillBg,
+                                        border = BorderStroke(0.5.dp, Color(0xFFBBF7D0))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(QuickKitchenTheme.GreenLight)
+                                            )
+                                            Text(
+                                                text = "Active",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp,
+                                                    color = QuickKitchenTheme.GreenPrimary
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (isConnected) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = QuickKitchenTheme.GreenPillBg.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = QuickKitchenTheme.GreenPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "1 POS Terminal Connected",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = QuickKitchenTheme.GreenPrimary
+                                    )
+                                )
+                                Text(
+                                    text = "Orders are syncing live to this kitchen station.",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = QuickKitchenTheme.TextSecondary
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = QuickKitchenTheme.Background,
+                        border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WifiOff,
+                                contentDescription = null,
+                                tint = QuickKitchenTheme.TextMuted,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                text = "No POS Terminal Connected",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = QuickKitchenTheme.TextPrimary
+                                )
+                            )
+                            Text(
+                                text = "Connect your QuickBill POS device on the same Wi-Fi using IP: $serverIp:$serverPort or via automatic Kitchen Discovery.",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = QuickKitchenTheme.TextSecondary
+                                ),
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Done",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+

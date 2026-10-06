@@ -44,6 +44,7 @@ enum class OrderEventType {
     ORDER_CANCELLED,
     STATUS_CHANGED,
     ORDER_ACK,
+    POS_HELLO,
     PING,
     PONG
 }
@@ -227,6 +228,20 @@ data class OrderEvent(
             )
         }
 
+        fun createPosHelloEvent(terminalName: String, deviceModel: String, ipAddress: String): OrderEvent {
+            val payload = JSONObject().apply {
+                put("terminalName", terminalName)
+                put("deviceModel", deviceModel)
+                put("ipAddress", ipAddress)
+                put("timestamp", System.currentTimeMillis())
+            }
+            return OrderEvent(
+                eventType = OrderEventType.POS_HELLO,
+                orderId = "",
+                payloadJson = payload.toString()
+            )
+        }
+
         fun fromJson(json: JSONObject): OrderEvent {
             return OrderEvent(
                 eventId = json.optString("eventId", UUID.randomUUID().toString()),
@@ -242,3 +257,46 @@ data class OrderEvent(
         }
     }
 }
+
+data class ConnectedKdsScreen(
+    val id: String, // "host:port"
+    val name: String,
+    val host: String,
+    val port: Int,
+    val status: String = "CONNECTED",
+    val connectedAt: Long = System.currentTimeMillis()
+)
+
+data class ConnectedPosTerminal(
+    val id: String, // "ip:port" or unique socket identifier
+    val name: String,
+    val ipAddress: String,
+    val port: Int,
+    val deviceModel: String = "",
+    val connectedAt: Long = System.currentTimeMillis()
+) {
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", id)
+            put("name", name)
+            put("ipAddress", ipAddress)
+            put("port", port)
+            put("deviceModel", deviceModel)
+            put("connectedAt", connectedAt)
+        }
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): ConnectedPosTerminal {
+            return ConnectedPosTerminal(
+                id = json.optString("id", ""),
+                name = json.optString("name", "POS Terminal"),
+                ipAddress = json.optString("ipAddress", "127.0.0.1"),
+                port = json.optInt("port", 0),
+                deviceModel = json.optString("deviceModel", ""),
+                connectedAt = json.optLong("connectedAt", System.currentTimeMillis())
+            )
+        }
+    }
+}
+

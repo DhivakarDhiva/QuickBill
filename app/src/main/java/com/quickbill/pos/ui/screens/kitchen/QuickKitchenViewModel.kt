@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.quickbill.pos.data.model.kds.ConnectedPosTerminal
+
 data class KitchenUiState(
     val displayedOrders: List<KitchenOrder> = emptyList(),
     val allOrders: List<KitchenOrder> = emptyList(),
@@ -34,6 +36,7 @@ data class KitchenUiState(
     val serverIp: String = "127.0.0.1",
     val serverPort: Int = 8080,
     val connectedClients: Int = 0,
+    val connectedPosTerminals: List<ConnectedPosTerminal> = emptyList(),
     val isServerRunning: Boolean = false,
     val warningThresholdMinutes: Int = 5,
     val settings: KdsSettings = KdsSettings(),
@@ -68,7 +71,8 @@ class QuickKitchenViewModel(
         connectionManager.connectedClientsCount,
         connectionManager.isServerRunning,
         _isSetupComplete,
-        _hasShownWaitingScreen
+        _hasShownWaitingScreen,
+        connectionManager.connectedPosTerminals
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val orderEntities = args[0] as List<com.quickbill.pos.data.local.entity.OrderEntity>
@@ -82,6 +86,8 @@ class QuickKitchenViewModel(
         val isRunning = args[7] as Boolean
         val setupComplete = args[8] as Boolean
         val waitingShown = args[9] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val terminals = args[10] as List<ConnectedPosTerminal>
 
         val itemsByOrderId = itemEntities.groupBy { it.orderId }
 
@@ -142,6 +148,7 @@ class QuickKitchenViewModel(
             serverIp = discoveryManager.getLocalIpAddress(),
             serverPort = settings.serverPort,
             connectedClients = clients,
+            connectedPosTerminals = terminals,
             isServerRunning = isRunning,
             warningThresholdMinutes = settings.warningThresholdMinutes,
             settings = settings,
