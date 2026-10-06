@@ -50,6 +50,9 @@ class ConnectionManager {
     private val _connectedServerAddress = MutableStateFlow("")
     val connectedServerAddress: StateFlow<String> = _connectedServerAddress.asStateFlow()
 
+    private val _lastErrorMessage = MutableStateFlow("")
+    val lastErrorMessage: StateFlow<String> = _lastErrorMessage.asStateFlow()
+
     // Stream of incoming messages received on POS client
     private val _clientIncomingMessages = MutableSharedFlow<String>(extraBufferCapacity = 64)
     val clientIncomingMessages: SharedFlow<String> = _clientIncomingMessages.asSharedFlow()
@@ -130,12 +133,34 @@ class ConnectionManager {
     // ==========================================
     // POS Client Methods
     // ==========================================
-    fun connectToKds(host: String, port: Int = 8080) {
+    fun connectToKds(rawHost: String, rawPort: Int = 8080) {
+        var host = rawHost.trim()
         if (host.isBlank()) return
+
+        // Strip scheme if user typed ws:// or http://
+        if (host.startsWith("ws://", ignoreCase = true)) host = host.substring(5)
+        else if (host.startsWith("wss://", ignoreCase = true)) host = host.substring(6)
+        else if (host.startsWith("http://", ignoreCase = true)) host = host.substring(7)
+        else if (host.startsWith("https://", ignoreCase = true)) host = host.substring(8)
+
+        // Strip leading slash
+        host = host.removePrefix("/")
+
+        var port = rawPort
+        // Check if host contains embedded port like 192.168.1.4:8080 (and not IPv6 with multiple colons)
+        if (host.contains(":") && !host.startsWith("[") && host.indexOf(":") == host.lastIndexOf(":")) {
+            val parts = host.split(":")
+            if (parts.size == 2 && parts[1].toIntOrNull() != null) {
+                host = parts[0]
+                port = parts[1].toInt()
+            }
+        }
+
         userDisconnected = false
         currentHost = host
-        currentPort = port
+        currentPort = if (port > 0) port else 8080
         reconnectAttempts = 0
+        _lastErrorMessage.value = ""
 
         disconnectClientInternal()
         initiateClientConnection()
@@ -145,6 +170,7 @@ class ConnectionManager {
         if (currentHost.isNotBlank()) {
             userDisconnected = false
             reconnectAttempts = 0
+            _lastErrorMessage.value = ""
             reconnectJob?.cancel()
             reconnectJob = null
             disconnectClientInternal()
@@ -155,16 +181,24 @@ class ConnectionManager {
     private fun initiateClientConnection() {
         if (userDisconnected) return
 
-        val uriStr = "ws://$currentHost:$currentPort"
+        val formattedHost = if (currentHost.contains(":") && !currentHost.startsWith("[")) {
+            "[$currentHost]"
+        } else {
+            currentHost
+        }
+        val uriStr = "ws://$formattedHost:$currentPort"
         val serverUri = try {
             URI(uriStr)
         } catch (e: Exception) {
             Log.e(TAG, "Invalid URI: $uriStr", e)
+            _lastErrorMessage.value = "Invalid server address: $uriStr"
             _connectionStatus.value = ConnectionStatus.DISCONNECTED
             return
         }
 
         _connectionStatus.value = if (reconnectAttempts > 0) ConnectionStatus.RECONNECTING else ConnectionStatus.CONNECTING
+
+        Log.i(TAG, "Connecting to KDS at $serverUri (attempt $reconnectAttempts)...")
 
         val newClient = PosWebSocketClient(
             serverUri = serverUri,
@@ -172,11 +206,28 @@ class ConnectionManager {
                 reconnectAttempts = 0
                 _connectionStatus.value = ConnectionStatus.CONNECTED
                 _connectedServerAddress.value = "$currentHost:$currentPort"
+                _lastErrorMessage.value = ""
+                Log.i(TAG, "Successfully connected to KDS at $currentHost:$currentPort")
                 startHeartbeat()
             },
-            onDisconnected = { _ ->
+            onDisconnected = { details ->
                 stopHeartbeat()
                 _connectedServerAddress.value = ""
+                
+                val userFriendlyError = when {
+                    details.contains("ETIMEDOUT", ignoreCase = true) ->
+                        "Connection timed out. Verify both devices are on the same Wi-Fi and the IP ($currentHost) is reachable."
+                    details.contains("ECONNREFUSED", ignoreCase = true) ->
+                        "Connection refused on port $currentPort. Make sure QuickKitchen KDS is running on the target device."
+                    details.contains("ECONNABORTED", ignoreCase = true) ->
+                        "Connection aborted by network. Verify Wi-Fi network routing."
+                    details.contains("Cleartext", ignoreCase = true) ->
+                        "Cleartext traffic blocked by network security policy."
+                    else -> details
+                }
+                _lastErrorMessage.value = userFriendlyError
+                Log.w(TAG, "Disconnected from KDS: $userFriendlyError")
+
                 if (!userDisconnected) {
                     scheduleReconnect()
                 } else {
@@ -188,11 +239,13 @@ class ConnectionManager {
                     _clientIncomingMessages.emit(msg)
                 }
             },
-            onErrorOccurred = { _ ->
-                // Handled gracefully in onDisconnected; do not double-schedule
+            onErrorOccurred = { ex ->
                 stopHeartbeat()
+                Log.e(TAG, "Client socket error: ${ex.message}")
             }
-        )
+        ).apply {
+            setConnectionLostTimeout(15)
+        }
 
         client = newClient
 
@@ -200,6 +253,7 @@ class ConnectionManager {
             newClient.connect()
         } catch (e: Exception) {
             Log.e(TAG, "Client connect exception", e)
+            _lastErrorMessage.value = e.message ?: "Failed to initiate connection"
             scheduleReconnect()
         }
     }

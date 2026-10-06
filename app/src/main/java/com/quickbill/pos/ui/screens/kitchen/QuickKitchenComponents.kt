@@ -283,7 +283,7 @@ fun QuickKitchenTimerBadge(
         shape = RoundedCornerShape(8.dp),
         color = backgroundColor,
         border = BorderStroke(1.dp, borderColor),
-        modifier = modifier
+        modifier = modifier.wrapContentSize()
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -298,6 +298,8 @@ fun QuickKitchenTimerBadge(
             )
             Text(
                 text = timerText,
+                maxLines = 1,
+                softWrap = false,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
@@ -353,14 +355,25 @@ fun QuickKitchenOrderCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val displayOrderNumber = if (order.orderNumber.startsWith("QB-") && order.orderNumber.length > 12) {
+                    "#" + order.orderNumber.substringAfterLast("-")
+                } else {
+                    "#${order.orderNumber}"
+                }
+
                 Text(
-                    text = "#${order.orderNumber}",
+                    text = displayOrderNumber,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = QuickKitchenTheme.TextPrimary
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+
+                Spacer(modifier = Modifier.width(6.dp))
 
                 QuickKitchenTimerBadge(
                     createdAt = order.createdAt,

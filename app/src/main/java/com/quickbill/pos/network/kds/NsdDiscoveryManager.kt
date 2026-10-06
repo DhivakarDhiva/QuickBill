@@ -3,6 +3,7 @@ package com.quickbill.pos.network.kds
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,8 @@ class NsdDiscoveryManager(private val context: Context) {
     }
 
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
+    private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+    private var multicastLock: WifiManager.MulticastLock? = null
 
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
@@ -45,6 +48,33 @@ class NsdDiscoveryManager(private val context: Context) {
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
+    private fun acquireMulticastLock() {
+        try {
+            if (multicastLock == null) {
+                multicastLock = wifiManager?.createMulticastLock("QuickBillMulticastLock")?.apply {
+                    setReferenceCounted(true)
+                }
+            }
+            if (multicastLock?.isHeld != true) {
+                multicastLock?.acquire()
+                Log.d(TAG, "MulticastLock acquired")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire MulticastLock", e)
+        }
+    }
+
+    private fun releaseMulticastLock() {
+        try {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+                Log.d(TAG, "MulticastLock released")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release MulticastLock", e)
+        }
+    }
+
     // KDS Mode: Register service on local network
     fun startAdvertising(serviceName: String = DEFAULT_SERVICE_NAME, port: Int = DEFAULT_PORT) {
         if (nsdManager == null) {
@@ -54,6 +84,8 @@ class NsdDiscoveryManager(private val context: Context) {
         if (_isAdvertising.value) {
             stopAdvertising()
         }
+
+        acquireMulticastLock()
 
         val serviceInfo = NsdServiceInfo().apply {
             this.serviceName = serviceName
@@ -98,6 +130,9 @@ class NsdDiscoveryManager(private val context: Context) {
             Log.e(TAG, "Error unregistering service", e)
         }
         _isAdvertising.value = false
+        if (!_isDiscovering.value) {
+            releaseMulticastLock()
+        }
     }
 
     // POS Mode: Discover KDS services
@@ -109,6 +144,8 @@ class NsdDiscoveryManager(private val context: Context) {
         if (_isDiscovering.value) {
             stopDiscovery()
         }
+
+        acquireMulticastLock()
 
         synchronized(resolveQueue) {
             resolveQueue.clear()
@@ -191,17 +228,18 @@ class NsdDiscoveryManager(private val context: Context) {
             }
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                val host = serviceInfo.host?.hostAddress
-                val port = serviceInfo.port
-                Log.i(TAG, "Service resolved: ${serviceInfo.serviceName} at $host:$port")
+                val rawHost = serviceInfo.host?.hostAddress ?: ""
+                val cleanHost = rawHost.removePrefix("/").substringBefore("%").trim()
+                val resolvedPort = if (serviceInfo.port > 0) serviceInfo.port else DEFAULT_PORT
+                Log.i(TAG, "Service resolved: ${serviceInfo.serviceName} at $cleanHost:$resolvedPort (raw=$rawHost)")
 
-                if (host != null) {
+                if (cleanHost.isNotBlank()) {
                     val discovered = DiscoveredKdsService(
                         serviceName = serviceInfo.serviceName,
-                        hostIp = host,
-                        port = port
+                        hostIp = cleanHost,
+                        port = resolvedPort
                     )
-                    val current = _discoveredServices.value.filter { it.hostIp != host || it.port != port }
+                    val current = _discoveredServices.value.filter { it.hostIp != cleanHost || it.port != resolvedPort }
                     _discoveredServices.value = current + discovered
                 }
 
@@ -236,17 +274,58 @@ class NsdDiscoveryManager(private val context: Context) {
             isResolving = false
         }
         _isDiscovering.value = false
+        if (!_isAdvertising.value) {
+            releaseMulticastLock()
+        }
     }
 
-    // Utility: Find local device IP on Wi-Fi network
+    // Utility: Find local device IP on Wi-Fi/LAN network (prioritize Wi-Fi over cellular)
     fun getLocalIpAddress(): String {
         try {
             val interfaces = Collections.list(NetworkInterface.getNetworkInterfaces())
+
+            // Pass 1: Prioritize Wi-Fi or Ethernet interfaces (e.g. wlan0, eth0, en0)
+            for (intf in interfaces) {
+                val name = intf.name.lowercase()
+                if (name.startsWith("wlan") || name.startsWith("eth") || name.startsWith("en") || name.contains("wifi")) {
+                    val addrs = Collections.list(intf.inetAddresses)
+                    for (addr in addrs) {
+                        if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                            val host = addr.hostAddress
+                            if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                                return host
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Pass 2: Any non-loopback, non-cellular IPv4 address (ignore cellular/dummy/p2p)
+            for (intf in interfaces) {
+                val name = intf.name.lowercase()
+                if (name.startsWith("rmnet") || name.startsWith("dummy") || name.startsWith("tun") || name.startsWith("p2p") || name.startsWith("ccmni")) {
+                    continue
+                }
+                val addrs = Collections.list(intf.inetAddresses)
+                for (addr in addrs) {
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        val host = addr.hostAddress
+                        if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                            return host
+                        }
+                    }
+                }
+            }
+
+            // Pass 3: Fallback to any non-loopback IPv4
             for (intf in interfaces) {
                 val addrs = Collections.list(intf.inetAddresses)
                 for (addr in addrs) {
                     if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                        return addr.hostAddress ?: "127.0.0.1"
+                        val host = addr.hostAddress
+                        if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                            return host
+                        }
                     }
                 }
             }

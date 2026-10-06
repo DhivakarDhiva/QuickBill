@@ -33,12 +33,15 @@ fun KdsConnectionDialog(
 ) {
     val connectionStatus by orderSyncManager.connectionManager.connectionStatus.collectAsState()
     val connectedAddress by orderSyncManager.connectionManager.connectedServerAddress.collectAsState()
+    val lastErrorMessage by orderSyncManager.connectionManager.lastErrorMessage.collectAsState()
     val discoveredServices by orderSyncManager.discoveryManager.discoveredServices.collectAsState()
     val isDiscovering by orderSyncManager.discoveryManager.isDiscovering.collectAsState()
     val pendingCount by orderSyncManager.outboxManager.pendingCountFlow.collectAsState(initial = 0)
 
-    var manualIp by remember { mutableStateOf("") }
-    var manualPort by remember { mutableStateOf("8080") }
+    val lastHost = remember { orderSyncManager.connectionManager.getLastConnectedHost() }
+    val lastPort = remember { orderSyncManager.connectionManager.getLastConnectedPort().toString() }
+    var manualIp by remember { mutableStateOf(lastHost) }
+    var manualPort by remember { mutableStateOf(if (lastPort != "0" && lastPort.isNotBlank()) lastPort else "8080") }
 
     LaunchedEffect(Unit) {
         orderSyncManager.discoveryManager.startDiscovery()
@@ -113,9 +116,9 @@ fun KdsConnectionDialog(
                                     .clip(CircleShape)
                                     .background(
                                         when (connectionStatus) {
-                                            ConnectionStatus.CONNECTED -> Color(0xFF16A34A)
-                                            ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFCA8A04)
-                                            ConnectionStatus.DISCONNECTED -> Color(0xFFDC2626)
+                                             ConnectionStatus.CONNECTED -> Color(0xFF16A34A)
+                                             ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFCA8A04)
+                                             ConnectionStatus.DISCONNECTED -> Color(0xFFDC2626)
                                         }
                                     )
                             )
@@ -161,6 +164,32 @@ fun KdsConnectionDialog(
                                 Spacer(Modifier.width(4.dp))
                                 Text("Reconnect")
                             }
+                        }
+                    }
+                }
+
+                if (connectionStatus != ConnectionStatus.CONNECTED && lastErrorMessage.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFFEE2E2),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = lastErrorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF991B1B)
+                            )
                         }
                     }
                 }
@@ -294,10 +323,18 @@ fun KdsConnectionDialog(
                 }
 
                 // Manual IP Fallback
-                Text(
-                    text = "Or Connect via Manual IP",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                )
+                val localIp = remember { orderSyncManager.discoveryManager.getLocalIpAddress() }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Or Connect via Manual IP",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = "This device's IP: $localIp (port: 8080)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -331,9 +368,19 @@ fun KdsConnectionDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = manualIp.isNotBlank()
+                    enabled = manualIp.isNotBlank() && connectionStatus != ConnectionStatus.CONNECTING
                 ) {
-                    Text("Connect via IP")
+                    if (connectionStatus == ConnectionStatus.CONNECTING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Connecting...")
+                    } else {
+                        Text("Connect via IP")
+                    }
                 }
             }
         }

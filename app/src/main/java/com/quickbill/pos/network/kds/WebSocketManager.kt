@@ -15,7 +15,7 @@ class KdsWebSocketServer(
     port: Int,
     private val onMessageReceived: (message: String, fromSocket: WebSocket) -> Unit,
     private val onClientCountChanged: (count: Int) -> Unit
-) : WebSocketServer(InetSocketAddress(port)) {
+) : WebSocketServer(InetSocketAddress("0.0.0.0", port)) {
 
     companion object {
         private const val TAG = "KdsWebSocketServer"
