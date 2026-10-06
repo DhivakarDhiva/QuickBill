@@ -46,6 +46,10 @@ interface OrderDao {
     @Query("SELECT * FROM kitchen_order_items WHERE orderId = :orderId")
     fun getItemsForOrderFlow(orderId: String): Flow<List<OrderItemEntity>>
 
+    @Query("SELECT * FROM kitchen_order_items")
+    fun getAllOrderItemsFlow(): Flow<List<OrderItemEntity>>
+
+
     @Query("DELETE FROM kitchen_orders WHERE orderId = :orderId")
     suspend fun deleteOrder(orderId: String)
 

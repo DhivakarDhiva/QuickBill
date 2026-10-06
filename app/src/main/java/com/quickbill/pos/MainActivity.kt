@@ -61,6 +61,7 @@ import com.quickbill.pos.ui.components.KdsConnectionDialog
 import com.quickbill.pos.data.model.kds.DeviceMode
 import com.quickbill.pos.ui.screens.mode.DeviceModeSelectionScreen
 import com.quickbill.pos.ui.screens.kitchen.QuickKitchenScreen
+import com.quickbill.pos.ui.screens.kitchen.QuickKitchenSplashScreen
 import com.quickbill.pos.ui.screens.kitchen.QuickKitchenViewModel
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
@@ -88,8 +89,13 @@ class MainActivity : ComponentActivity() {
                 onThemeChange = { mode -> app.themeRepository.setThemeMode(mode) }
             ) {
                 val deviceMode by app.deviceModeRepository.deviceMode.collectAsState()
+                var showSplashScreen by remember { mutableStateOf(true) }
 
-                if (deviceMode == null) {
+                if (showSplashScreen) {
+                    QuickKitchenSplashScreen(
+                        onSplashFinished = { showSplashScreen = false }
+                    )
+                } else if (deviceMode == null) {
                     DeviceModeSelectionScreen(
                         onModeSelected = { mode ->
                             app.deviceModeRepository.setDeviceMode(mode)

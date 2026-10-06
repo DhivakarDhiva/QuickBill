@@ -1,249 +1,230 @@
 package com.quickbill.pos.ui.screens.mode
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quickbill.pos.data.model.kds.DeviceMode
+import com.quickbill.pos.ui.screens.kitchen.ChefHatBadge
+import com.quickbill.pos.ui.screens.kitchen.QuickKitchenTheme
 
 @Composable
 fun DeviceModeSelectionScreen(
     currentMode: DeviceMode? = null,
+    onBackClick: (() -> Unit)? = null,
     onModeSelected: (DeviceMode) -> Unit
 ) {
-    var selectedMode by remember { mutableStateOf(currentMode ?: DeviceMode.POS) }
+    var selectedMode by remember { mutableStateOf(currentMode ?: DeviceMode.KDS) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        MaterialTheme.colorScheme.background
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 680.dp)
-                .fillMaxWidth()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // App Branding Header
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+    Scaffold(
+        containerColor = QuickKitchenTheme.Background,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.size(68.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
+                if (onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.PointOfSale,
-                            contentDescription = "QuickBill Logo",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(38.dp)
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = QuickKitchenTheme.TextPrimary
                         )
                     }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
                 }
 
-                Text(
-                    text = "QuickBill",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                    text = "Choose Device Role",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    text = "Select how this device operates in your store network. You can change this anytime from Settings.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // Mode Selection Cards
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ModeCard(
-                    title = "POS Mode (Point of Sale)",
-                    subtitle = "Checkout, Billing, Product Catalog & Barcode Scanner. Automatically sends customer orders to the Kitchen Display.",
-                    icon = Icons.Default.PointOfSale,
-                    isSelected = selectedMode == DeviceMode.POS,
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    onClick = { selectedMode = DeviceMode.POS }
-                )
-
-                ModeCard(
-                    title = "KDS Mode (QuickKitchen Display)",
-                    subtitle = "Kitchen production station. Receives live orders via local Wi-Fi WebSocket & NSD, tracks elapsed cooking time, and manages prep status.",
-                    icon = Icons.Default.Restaurant,
-                    isSelected = selectedMode == DeviceMode.KDS,
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                    onClick = { selectedMode = DeviceMode.KDS }
-                )
-            }
-
-            // Wi-Fi Info note
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Wifi,
-                        contentDescription = "Wi-Fi note",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    ChefHatBadge(size = 32)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Both devices must be connected to the same Wi-Fi network for instant auto-discovery and live syncing.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "QuickBill",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = QuickKitchenTheme.TextPrimary
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(48.dp))
+            }
+        },
+        bottomBar = {
+            Surface(
+                color = QuickKitchenTheme.Background,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
+            ) {
+                Button(
+                    onClick = { onModeSelected(selectedMode) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary)
+                ) {
+                    Text(
+                        text = "Continue",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                     )
                 }
             }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Confirm Button
-            Button(
-                onClick = { onModeSelected(selectedMode) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+            // Screen Header matching Reference Screen 2
+            Text(
+                text = "Choose Device Mode",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = QuickKitchenTheme.TextPrimary
                 )
-            ) {
-                Text(
-                    text = "Start as ${selectedMode.displayName.split(" ").first()}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+
+            Text(
+                text = "Select how you want to use this device",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp,
+                    color = QuickKitchenTheme.TextSecondary
                 )
-            }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Option 1: POS
+            ModeOptionCard(
+                title = "POS",
+                subtitle = "Billing, Sales & Management",
+                icon = Icons.Default.PointOfSale,
+                iconBg = Color(0xFFE0F2FE),
+                iconTint = Color(0xFF0284C7),
+                isSelected = selectedMode == DeviceMode.POS,
+                onClick = { selectedMode = DeviceMode.POS }
+            )
+
+            // Option 2: Kitchen Display
+            ModeOptionCard(
+                title = "Kitchen Display",
+                subtitle = "Receive and manage kitchen orders",
+                icon = Icons.Default.Restaurant,
+                iconBg = QuickKitchenTheme.GreenPillBg,
+                iconTint = QuickKitchenTheme.GreenPrimary,
+                isSelected = selectedMode == DeviceMode.KDS,
+                onClick = { selectedMode = DeviceMode.KDS }
+            )
         }
     }
 }
 
 @Composable
-private fun ModeCard(
+private fun ModeOptionCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
     isSelected: Boolean,
-    accentColor: Color,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant
-    val containerColor = if (isSelected) accentColor.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .border(
-                BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
-                RoundedCornerShape(20.dp)
-            ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 0.dp)
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = QuickKitchenTheme.Surface,
+        border = BorderStroke(
+            if (isSelected) 2.dp else 1.dp,
+            if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.BorderSubtle
+        ),
+        shadowElevation = if (isSelected) 1.dp else 0.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
-                .padding(20.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isSelected) accentColor else MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(52.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = iconBg,
+                modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
-                        contentDescription = title,
-                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(28.dp)
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = QuickKitchenTheme.TextPrimary
+                    )
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 18.sp
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp,
+                        color = QuickKitchenTheme.TextSecondary
+                    )
                 )
             }
 
-            RadioButton(
-                selected = isSelected,
-                onClick = onClick,
-                colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = QuickKitchenTheme.TextMuted,
+                modifier = Modifier.size(24.dp)
             )
         }
     }

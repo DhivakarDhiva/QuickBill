@@ -1,0 +1,531 @@
+package com.quickbill.pos.ui.screens.kitchen
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.quickbill.pos.data.model.kds.KitchenOrder
+import com.quickbill.pos.data.model.kds.KitchenOrderItem
+import com.quickbill.pos.data.model.kds.OrderStatus
+import java.util.Locale
+
+// =========================================================================
+// Chef Hat Logo Icon matching Reference (Screen 2, 3, 4, 5, etc.)
+// =========================================================================
+@Composable
+fun ChefHatBadge(
+    modifier: Modifier = Modifier,
+    size: Int = 40,
+    backgroundColor: Color = Color(0xFFDCFCE7),
+    iconColor: Color = Color(0xFF0F5132)
+) {
+    Surface(
+        shape = RoundedCornerShape((size * 0.3f).dp),
+        color = backgroundColor,
+        modifier = modifier.size(size.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Restaurant,
+                contentDescription = "Chef Hat",
+                tint = iconColor,
+                modifier = Modifier.size((size * 0.58f).dp)
+            )
+        }
+    }
+}
+
+// =========================================================================
+// Header: QuickKitchen Top Bar matching Reference Screen 5, 6, 7
+// =========================================================================
+@Composable
+fun QuickKitchenHeader(
+    kitchenName: String,
+    isConnected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = QuickKitchenTheme.Surface,
+        shadowElevation = 0.5.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left: Chef Badge + Title + Subtitle
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ChefHatBadge(size = 38)
+                Column {
+                    Text(
+                        text = "QuickKitchen",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = QuickKitchenTheme.TextPrimary
+                        )
+                    )
+                    Text(
+                        text = kitchenName,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            color = QuickKitchenTheme.TextSecondary
+                        )
+                    )
+                }
+            }
+
+            // Right: Connected Pill
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (isConnected) QuickKitchenTheme.GreenPillBg else QuickKitchenTheme.RedPillBg,
+                border = BorderStroke(1.dp, if (isConnected) Color(0xFFBBF7D0) else Color(0xFFFECACA))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
+                        contentDescription = null,
+                        tint = if (isConnected) QuickKitchenTheme.GreenPillText else QuickKitchenTheme.RedPillText,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = if (isConnected) "Connected" else "Waiting...",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = if (isConnected) QuickKitchenTheme.GreenPillText else QuickKitchenTheme.RedPillText
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Status Tabs matching Reference Screen 5, 6, 7
+// 3 rounded cards: [ 4 New ] [ 3 Preparing ] [ 2 Ready ]
+// =========================================================================
+@Composable
+fun QuickKitchenStatusTabs(
+    newCount: Int,
+    preparingCount: Int,
+    readyCount: Int,
+    selectedStatus: OrderStatus,
+    onStatusSelected: (OrderStatus) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Tab 1: NEW
+        val isNewSelected = selectedStatus == OrderStatus.NEW
+        StatusTabCard(
+            modifier = Modifier.weight(1f),
+            count = newCount,
+            label = "New",
+            isSelected = isNewSelected,
+            selectedBg = QuickKitchenTheme.GreenPrimary,
+            selectedContentColor = Color.White,
+            unselectedAccentColor = QuickKitchenTheme.GreenLight,
+            onClick = { onStatusSelected(OrderStatus.NEW) }
+        )
+
+        // Tab 2: PREPARING
+        val isPreparingSelected = selectedStatus == OrderStatus.PREPARING
+        StatusTabCard(
+            modifier = Modifier.weight(1f),
+            count = preparingCount,
+            label = "Preparing",
+            isSelected = isPreparingSelected,
+            selectedBg = QuickKitchenTheme.OrangePrimary,
+            selectedContentColor = Color.White,
+            unselectedAccentColor = QuickKitchenTheme.OrangePrimary,
+            onClick = { onStatusSelected(OrderStatus.PREPARING) }
+        )
+
+        // Tab 3: READY
+        val isReadySelected = selectedStatus == OrderStatus.READY
+        StatusTabCard(
+            modifier = Modifier.weight(1f),
+            count = readyCount,
+            label = "Ready",
+            isSelected = isReadySelected,
+            selectedBg = QuickKitchenTheme.GreenPrimary,
+            selectedContentColor = Color.White,
+            unselectedAccentColor = QuickKitchenTheme.RedPrimary,
+            onClick = { onStatusSelected(OrderStatus.READY) }
+        )
+    }
+}
+
+@Composable
+private fun StatusTabCard(
+    count: Int,
+    label: String,
+    isSelected: Boolean,
+    selectedBg: Color,
+    selectedContentColor: Color,
+    unselectedAccentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) selectedBg else QuickKitchenTheme.Surface,
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) selectedBg else QuickKitchenTheme.BorderSubtle
+        ),
+        shadowElevation = if (isSelected) 1.dp else 0.dp,
+        modifier = modifier.height(64.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = if (isSelected) selectedContentColor else unselectedAccentColor
+                )
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = if (isSelected) selectedContentColor.copy(alpha = 0.9f) else QuickKitchenTheme.TextSecondary
+                )
+            )
+        }
+    }
+}
+
+// =========================================================================
+// Order Card matching Reference Screen 5, 6, 7
+// =========================================================================
+@Composable
+fun QuickKitchenOrderCard(
+    order: KitchenOrder,
+    items: List<KitchenOrderItem>,
+    currentTimeMillis: Long,
+    warningThresholdMinutes: Int = 5,
+    onCardClick: () -> Unit,
+    onActionClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val elapsedSeconds = ((currentTimeMillis - order.createdAt) / 1000L).coerceAtLeast(0L)
+    val elapsedMinutes = elapsedSeconds / 60
+    val isOverdue = elapsedMinutes >= warningThresholdMinutes
+    val timerText = String.format(Locale.US, "%02d:%02d", elapsedMinutes, elapsedSeconds % 60)
+
+    val itemCount = if (items.isNotEmpty()) items.sumOf { it.quantity } else 1
+    val metadataText = buildString {
+        append(order.orderType.displayName)
+        if (order.tableNumber.isNotBlank()) append(" · Table ${order.tableNumber}")
+        append(" · $itemCount items")
+    }
+
+    Surface(
+        onClick = onCardClick,
+        shape = RoundedCornerShape(14.dp),
+        color = QuickKitchenTheme.Surface,
+        border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+        shadowElevation = 0.5.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Header: #10042 on left, Timer pill on right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "#${order.orderNumber}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = QuickKitchenTheme.TextPrimary
+                    )
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isOverdue) QuickKitchenTheme.RedPillBg else Color(0xFFF1F5F9),
+                    border = BorderStroke(1.dp, if (isOverdue) Color(0xFFFECACA) else Color(0xFFE2E8F0))
+                ) {
+                    Text(
+                        text = timerText,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (isOverdue) QuickKitchenTheme.RedPrimary else QuickKitchenTheme.TextSecondary
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            // Order metadata: Dine In · Table 3 · 4 items
+            Text(
+                text = metadataText,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    color = QuickKitchenTheme.TextSecondary
+                )
+            )
+
+            HorizontalDivider(color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.6f))
+
+            // Items List matching reference
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items.forEach { item ->
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "${item.quantity} ×",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = QuickKitchenTheme.TextPrimary
+                                )
+                            )
+                            Text(
+                                text = item.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.sp,
+                                    color = QuickKitchenTheme.TextPrimary
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (item.notes.isNotBlank()) {
+                            Text(
+                                text = item.notes,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    color = QuickKitchenTheme.OrangePrimary
+                                ),
+                                modifier = Modifier.padding(start = 24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // Action Button: Solid Green or Orange
+            when (order.status) {
+                OrderStatus.NEW -> {
+                    Button(
+                        onClick = onActionClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary),
+                        contentPadding = PaddingValues(vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "Start Preparing",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        )
+                    }
+                }
+                OrderStatus.PREPARING -> {
+                    Button(
+                        onClick = onActionClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.OrangePrimary),
+                        contentPadding = PaddingValues(vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "Mark as Ready",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        )
+                    }
+                }
+                OrderStatus.READY -> {
+                    Button(
+                        onClick = onActionClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary),
+                        contentPadding = PaddingValues(vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "Mark as Completed",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Bottom Navigation matching Reference (Orders | History | Settings)
+// =========================================================================
+@Composable
+fun QuickKitchenBottomBar(
+    currentTab: Int, // 0 = Orders, 1 = History, 2 = Settings
+    activeOrdersCount: Int,
+    onSelectTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = QuickKitchenTheme.Surface,
+        shadowElevation = 8.dp,
+        border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .fillMaxWidth()
+                .height(60.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            // Tab 1: Orders
+            BottomNavItem(
+                icon = Icons.Default.RestaurantMenu,
+                label = "Orders",
+                isSelected = currentTab == 0,
+                badgeCount = if (activeOrdersCount > 0) activeOrdersCount else null,
+                onClick = { onSelectTab(0) }
+            )
+
+            // Tab 2: History
+            BottomNavItem(
+                icon = Icons.Default.History,
+                label = "History",
+                isSelected = currentTab == 1,
+                badgeCount = null,
+                onClick = { onSelectTab(1) }
+            )
+
+            // Tab 3: Settings
+            BottomNavItem(
+                icon = Icons.Default.Settings,
+                label = "Settings",
+                isSelected = currentTab == 2,
+                badgeCount = null,
+                onClick = { onSelectTab(2) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean,
+    badgeCount: Int?,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        BadgedBox(
+            badge = {
+                if (badgeCount != null) {
+                    Badge(
+                        containerColor = QuickKitchenTheme.RedPrimary,
+                        contentColor = Color.White
+                    ) {
+                        Text(text = badgeCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextMuted,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextMuted
+            )
+        )
+    }
+}

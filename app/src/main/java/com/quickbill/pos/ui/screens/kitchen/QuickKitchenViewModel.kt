@@ -20,19 +20,25 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class KitchenUiState(
-    val orders: List<KitchenOrder> = emptyList(),
-    val selectedTab: Int = 0, // 0 = All Active, 1 = New, 2 = Preparing, 3 = Ready, 4 = Completed
-    val searchQuery: String = "",
+    val displayedOrders: List<KitchenOrder> = emptyList(),
+    val allOrders: List<KitchenOrder> = emptyList(),
+    val selectedStatus: OrderStatus = OrderStatus.NEW,
+    val currentNavTab: Int = 0, // 0 = Orders, 1 = History, 2 = Settings
+    val selectedOrderForDetail: KitchenOrder? = null,
+    val newOrdersCount: Int = 0,
+    val preparingOrdersCount: Int = 0,
+    val readyOrdersCount: Int = 0,
+    val completedOrdersCount: Int = 0,
+    val activeOrdersCount: Int = 0,
+    val kitchenName: String = "Main Kitchen",
     val serverIp: String = "127.0.0.1",
-    val serverPort: Int = 8887,
+    val serverPort: Int = 8080,
     val connectedClients: Int = 0,
     val isServerRunning: Boolean = false,
     val warningThresholdMinutes: Int = 5,
-    val soundAlertEnabled: Boolean = true,
-    val vibrateAlertEnabled: Boolean = true,
-    val isSettingsDialogOpen: Boolean = false,
-    val isChangeModeDialogOpen: Boolean = false,
-    val latestNotificationOrder: KitchenOrder? = null
+    val settings: KdsSettings = KdsSettings(),
+    val isSetupComplete: Boolean = true,
+    val hasShownWaitingScreen: Boolean = false
 )
 
 class QuickKitchenViewModel(
@@ -43,39 +49,56 @@ class QuickKitchenViewModel(
     private val settingsRepository: KdsSettingsRepository
 ) : ViewModel() {
 
-    private val _selectedTab = MutableStateFlow(0)
-    private val _searchQuery = MutableStateFlow("")
-    private val _isSettingsDialogOpen = MutableStateFlow(false)
-    private val _isChangeModeDialogOpen = MutableStateFlow(false)
-    private val _latestNotificationOrder = MutableStateFlow<KitchenOrder?>(null)
+    private val _selectedStatus = MutableStateFlow(OrderStatus.NEW)
+    private val _currentNavTab = MutableStateFlow(0)
+    private val _selectedOrderForDetail = MutableStateFlow<KitchenOrder?>(null)
+    private val _isSetupComplete = MutableStateFlow(true)
+    private val _hasShownWaitingScreen = MutableStateFlow(false)
 
-    // Flow of all orders converted with their items
     private val _ordersFlow = orderDao.getAllOrdersFlow()
+    private val _itemsFlow = orderDao.getAllOrderItemsFlow()
 
     val uiState: StateFlow<KitchenUiState> = combine(
         _ordersFlow,
-        _selectedTab,
-        _searchQuery,
+        _itemsFlow,
+        _selectedStatus,
+        _currentNavTab,
+        _selectedOrderForDetail,
         settingsRepository.settings,
         connectionManager.connectedClientsCount,
         connectionManager.isServerRunning,
-        _isSettingsDialogOpen,
-        _isChangeModeDialogOpen,
-        _latestNotificationOrder
+        _isSetupComplete,
+        _hasShownWaitingScreen
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val orderEntities = args[0] as List<com.quickbill.pos.data.local.entity.OrderEntity>
-        val tab = args[1] as Int
-        val query = args[2] as String
-        val settings = args[3] as KdsSettings
-        val clients = args[4] as Int
-        val isRunning = args[5] as Boolean
-        val isSettingsOpen = args[6] as Boolean
-        val isChangeModeOpen = args[7] as Boolean
-        val notificationOrder = args[8] as KitchenOrder?
+        @Suppress("UNCHECKED_CAST")
+        val itemEntities = args[1] as List<com.quickbill.pos.data.local.entity.OrderItemEntity>
+        val status = args[2] as OrderStatus
+        val navTab = args[3] as Int
+        val detailOrder = args[4] as KitchenOrder?
+        val settings = args[5] as KdsSettings
+        val clients = args[6] as Int
+        val isRunning = args[7] as Boolean
+        val setupComplete = args[8] as Boolean
+        val waitingShown = args[9] as Boolean
 
-        // Load items for orders synchronously in memory mapping (or on demand)
-        val kitchenOrders = orderEntities.map { entity ->
+        val itemsByOrderId = itemEntities.groupBy { it.orderId }
+
+        val allKitchenOrders = orderEntities.map { entity ->
+            val orderItems = itemsByOrderId[entity.orderId]?.map {
+                KitchenOrderItem(
+                    id = it.id,
+                    orderId = it.orderId,
+                    productId = it.productId,
+                    name = it.name,
+                    quantity = it.quantity,
+                    unitPrice = it.unitPrice,
+                    notes = it.notes,
+                    isVeg = it.isVeg
+                )
+            } ?: emptyList()
+
             KitchenOrder(
                 orderId = entity.orderId,
                 orderNumber = entity.orderNumber,
@@ -84,48 +107,46 @@ class QuickKitchenViewModel(
                 notes = entity.notes,
                 orderType = entity.orderType,
                 status = entity.status,
-                items = emptyList(), // Populated by item loading or detail view
+                items = orderItems,
                 createdAt = entity.createdAt,
                 updatedAt = entity.updatedAt,
                 synced = entity.synced
             )
         }
 
-        // Tab filtering
-        val filteredByTab = when (tab) {
-            0 -> kitchenOrders.filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
-            1 -> kitchenOrders.filter { it.status == OrderStatus.NEW }
-            2 -> kitchenOrders.filter { it.status == OrderStatus.PREPARING }
-            3 -> kitchenOrders.filter { it.status == OrderStatus.READY }
-            4 -> kitchenOrders.filter { it.status == OrderStatus.COMPLETED }
-            else -> kitchenOrders
-        }
+        val newCount = allKitchenOrders.count { it.status == OrderStatus.NEW }
+        val preparingCount = allKitchenOrders.count { it.status == OrderStatus.PREPARING }
+        val readyCount = allKitchenOrders.count { it.status == OrderStatus.READY }
+        val completedCount = allKitchenOrders.count { it.status == OrderStatus.COMPLETED }
+        val activeCount = newCount + preparingCount + readyCount
 
-        // Search filtering
-        val filtered = if (query.isBlank()) {
-            filteredByTab
-        } else {
-            filteredByTab.filter {
-                it.orderNumber.contains(query, ignoreCase = true) ||
-                it.customerName.contains(query, ignoreCase = true) ||
-                it.tableNumber.contains(query, ignoreCase = true)
-            }
+        val displayed = allKitchenOrders.filter { it.status == status }
+
+        // Updated selected detail order if status changed
+        val currentDetail = detailOrder?.let { d ->
+            allKitchenOrders.find { it.orderId == d.orderId } ?: d
         }
 
         KitchenUiState(
-            orders = filtered,
-            selectedTab = tab,
-            searchQuery = query,
+            displayedOrders = displayed,
+            allOrders = allKitchenOrders,
+            selectedStatus = status,
+            currentNavTab = navTab,
+            selectedOrderForDetail = currentDetail,
+            newOrdersCount = newCount,
+            preparingOrdersCount = preparingCount,
+            readyOrdersCount = readyCount,
+            completedOrdersCount = completedCount,
+            activeOrdersCount = activeCount,
+            kitchenName = settings.kitchenName,
             serverIp = discoveryManager.getLocalIpAddress(),
             serverPort = settings.serverPort,
             connectedClients = clients,
             isServerRunning = isRunning,
             warningThresholdMinutes = settings.warningThresholdMinutes,
-            soundAlertEnabled = settings.soundAlertEnabled,
-            vibrateAlertEnabled = settings.vibrateAlertEnabled,
-            isSettingsDialogOpen = isSettingsOpen,
-            isChangeModeDialogOpen = isChangeModeOpen,
-            latestNotificationOrder = notificationOrder
+            settings = settings,
+            isSetupComplete = setupComplete,
+            hasShownWaitingScreen = waitingShown
         )
     }.stateIn(
         viewModelScope,
@@ -134,15 +155,7 @@ class QuickKitchenViewModel(
     )
 
     init {
-        // Start KDS WebSocket server and NSD advertising
         startKdsServices()
-
-        // Collect new order notifications
-        viewModelScope.launch {
-            orderSyncManager.newOrderNotificationFlow.collect { order ->
-                _latestNotificationOrder.value = order
-            }
-        }
     }
 
     fun startKdsServices() {
@@ -156,56 +169,41 @@ class QuickKitchenViewModel(
         discoveryManager.stopAdvertising()
     }
 
-    fun setTab(index: Int) {
-        _selectedTab.value = index
+    fun selectStatus(status: OrderStatus) {
+        _selectedStatus.value = status
     }
 
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+    fun selectNavTab(tab: Int) {
+        _currentNavTab.value = tab
+        _selectedOrderForDetail.value = null
     }
 
-    fun openSettingsDialog() {
-        _isSettingsDialogOpen.value = true
+    fun openOrderDetail(order: KitchenOrder) {
+        _selectedOrderForDetail.value = order
     }
 
-    fun closeSettingsDialog() {
-        _isSettingsDialogOpen.value = false
+    fun closeOrderDetail() {
+        _selectedOrderForDetail.value = null
     }
 
-    fun openChangeModeDialog() {
-        _isChangeModeDialogOpen.value = true
-    }
-
-    fun closeChangeModeDialog() {
-        _isChangeModeDialogOpen.value = false
-    }
-
-    fun dismissNotification() {
-        _latestNotificationOrder.value = null
-    }
-
-    fun updateSettings(
-        kitchenName: String,
-        warningMinutes: Int,
-        soundEnabled: Boolean,
-        vibrateEnabled: Boolean,
-        port: Int
-    ) {
+    fun markSetupComplete(kitchenName: String) {
         val current = settingsRepository.settings.value
-        val updated = current.copy(
-            kitchenName = kitchenName,
-            warningThresholdMinutes = warningMinutes,
-            soundAlertEnabled = soundEnabled,
-            vibrateAlertEnabled = vibrateEnabled,
-            serverPort = port
-        )
-        settingsRepository.updateSettings(updated)
-        // Restart server if port changed
-        if (current.serverPort != port) {
+        settingsRepository.updateSettings(current.copy(kitchenName = kitchenName))
+        _isSetupComplete.value = true
+    }
+
+    fun markWaitingScreenShown() {
+        _hasShownWaitingScreen.value = true
+    }
+
+    fun updateSettings(settings: KdsSettings) {
+        val current = settingsRepository.settings.value
+        settingsRepository.updateSettings(settings)
+        if (current.serverPort != settings.serverPort) {
             connectionManager.stopKdsServer()
             discoveryManager.stopAdvertising()
-            connectionManager.startKdsServer(port)
-            discoveryManager.startAdvertising(serviceName = "QuickKitchen-KDS", port = port)
+            connectionManager.startKdsServer(settings.serverPort)
+            discoveryManager.startAdvertising(serviceName = "QuickKitchen-KDS", port = settings.serverPort)
         }
     }
 
@@ -214,6 +212,10 @@ class QuickKitchenViewModel(
         val next = order.status.nextStatus() ?: return
         viewModelScope.launch {
             orderSyncManager.updateOrderStatusOnKds(order.orderId, next)
+            // If currently viewing order detail, update or close if completed
+            if (next == OrderStatus.COMPLETED) {
+                _selectedOrderForDetail.value = null
+            }
         }
     }
 
@@ -226,30 +228,7 @@ class QuickKitchenViewModel(
     fun cancelOrder(orderId: String) {
         viewModelScope.launch {
             orderSyncManager.updateOrderStatusOnKds(orderId, OrderStatus.CANCELLED)
+            _selectedOrderForDetail.value = null
         }
-    }
-
-    // Fetch order items for a specific order
-    fun getOrderItems(orderId: String, onResult: (List<KitchenOrderItem>) -> Unit) {
-        viewModelScope.launch {
-            val items = orderDao.getItemsForOrder(orderId).map {
-                KitchenOrderItem(
-                    id = it.id,
-                    orderId = it.orderId,
-                    productId = it.productId,
-                    name = it.name,
-                    quantity = it.quantity,
-                    unitPrice = it.unitPrice,
-                    notes = it.notes,
-                    isVeg = it.isVeg
-                )
-            }
-            onResult(items)
-        }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // We do not stop daemon server if running, or can clean up discovery
     }
 }
