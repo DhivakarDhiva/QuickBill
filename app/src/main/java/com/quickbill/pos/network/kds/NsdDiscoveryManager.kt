@@ -3,14 +3,13 @@ package com.quickbill.pos.network.kds
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.net.wifi.WifiManager
-import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.ArrayDeque
 import java.util.Collections
 
 data class DiscoveredKdsService(
@@ -25,13 +24,17 @@ class NsdDiscoveryManager(private val context: Context) {
         private const val TAG = "NsdDiscoveryManager"
         const val SERVICE_TYPE = "_quickbill._tcp."
         const val DEFAULT_SERVICE_NAME = "QuickKitchen-KDS"
-        const val DEFAULT_PORT = 8887
+        const val DEFAULT_PORT = 8080
     }
 
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
 
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+
+    // Sequential service resolution queue to prevent Android NSD FAILURE_ALREADY_ACTIVE
+    private val resolveQueue = ArrayDeque<NsdServiceInfo>()
+    private var isResolving = false
 
     private val _discoveredServices = MutableStateFlow<List<DiscoveredKdsService>>(emptyList())
     val discoveredServices: StateFlow<List<DiscoveredKdsService>> = _discoveredServices.asStateFlow()
@@ -87,14 +90,13 @@ class NsdDiscoveryManager(private val context: Context) {
     }
 
     fun stopAdvertising() {
-        registrationListener?.let {
-            try {
-                nsdManager?.unregisterService(it)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error unregistering service", e)
-            }
-        }
+        val listener = registrationListener ?: return
         registrationListener = null
+        try {
+            nsdManager?.unregisterService(listener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering service", e)
+        }
         _isAdvertising.value = false
     }
 
@@ -108,6 +110,10 @@ class NsdDiscoveryManager(private val context: Context) {
             stopDiscovery()
         }
 
+        synchronized(resolveQueue) {
+            resolveQueue.clear()
+            isResolving = false
+        }
         _discoveredServices.value = emptyList()
 
         discoveryListener = object : NsdManager.DiscoveryListener {
@@ -118,12 +124,11 @@ class NsdDiscoveryManager(private val context: Context) {
 
             override fun onServiceFound(service: NsdServiceInfo) {
                 Log.i(TAG, "Service found: ${service.serviceName}, type: ${service.serviceType}")
-                // Check if matching our service type
                 if (service.serviceType.contains("quickbill", ignoreCase = true) ||
                     service.serviceName.contains("Kitchen", ignoreCase = true) ||
                     service.serviceName.contains("KDS", ignoreCase = true)
                 ) {
-                    resolveService(service)
+                    enqueueServiceResolution(service)
                 }
             }
 
@@ -156,43 +161,80 @@ class NsdDiscoveryManager(private val context: Context) {
         }
     }
 
-    private fun resolveService(service: NsdServiceInfo) {
+    private fun enqueueServiceResolution(service: NsdServiceInfo) {
+        synchronized(resolveQueue) {
+            // Avoid duplicate queue entries
+            if (!resolveQueue.any { it.serviceName == service.serviceName }) {
+                resolveQueue.add(service)
+            }
+            processNextResolve()
+        }
+    }
+
+    private fun processNextResolve() {
+        synchronized(resolveQueue) {
+            if (isResolving || resolveQueue.isEmpty()) return
+            val nextService = resolveQueue.removeFirst()
+            isResolving = true
+            resolveServiceInternal(nextService)
+        }
+    }
+
+    private fun resolveServiceInternal(service: NsdServiceInfo) {
         val resolveListener = object : NsdManager.ResolveListener {
             override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
+                synchronized(resolveQueue) {
+                    isResolving = false
+                    processNextResolve()
+                }
             }
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                val host = serviceInfo.host?.hostAddress ?: return
+                val host = serviceInfo.host?.hostAddress
                 val port = serviceInfo.port
                 Log.i(TAG, "Service resolved: ${serviceInfo.serviceName} at $host:$port")
 
-                val discovered = DiscoveredKdsService(
-                    serviceName = serviceInfo.serviceName,
-                    hostIp = host,
-                    port = port
-                )
-                val current = _discoveredServices.value.filter { it.hostIp != host || it.port != port }
-                _discoveredServices.value = current + discovered
+                if (host != null) {
+                    val discovered = DiscoveredKdsService(
+                        serviceName = serviceInfo.serviceName,
+                        hostIp = host,
+                        port = port
+                    )
+                    val current = _discoveredServices.value.filter { it.hostIp != host || it.port != port }
+                    _discoveredServices.value = current + discovered
+                }
+
+                synchronized(resolveQueue) {
+                    isResolving = false
+                    processNextResolve()
+                }
             }
         }
 
         try {
             nsdManager?.resolveService(service, resolveListener)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception resolving service", e)
+            Log.e(TAG, "Exception calling resolveService", e)
+            synchronized(resolveQueue) {
+                isResolving = false
+                processNextResolve()
+            }
         }
     }
 
     fun stopDiscovery() {
-        discoveryListener?.let {
-            try {
-                nsdManager?.stopServiceDiscovery(it)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error stopping discovery", e)
-            }
-        }
+        val listener = discoveryListener ?: return
         discoveryListener = null
+        try {
+            nsdManager?.stopServiceDiscovery(listener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping discovery", e)
+        }
+        synchronized(resolveQueue) {
+            resolveQueue.clear()
+            isResolving = false
+        }
         _isDiscovering.value = false
     }
 

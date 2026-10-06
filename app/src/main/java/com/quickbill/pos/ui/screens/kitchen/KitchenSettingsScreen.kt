@@ -22,18 +22,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.quickbill.pos.data.repository.AppThemeMode
 import com.quickbill.pos.data.repository.KdsSettings
+import com.quickbill.pos.ui.components.AppearanceDialog
 
 @Composable
 fun KitchenSettingsScreen(
     settings: KdsSettings,
     isConnected: Boolean,
+    currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    onThemeChange: (AppThemeMode) -> Unit = {},
     onBackClick: () -> Unit,
     onUpdateSettings: (KdsSettings) -> Unit,
     onChangeDeviceMode: () -> Unit
 ) {
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showWarningTimeDialog by remember { mutableStateOf(false) }
+    var showAppearanceDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = QuickKitchenTheme.Background,
@@ -206,6 +211,68 @@ fun KitchenSettingsScreen(
                 }
             }
 
+            // Group: Appearance & Theme
+            SettingsGroup(title = "Appearance & Theme") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = QuickKitchenTheme.Surface,
+                    border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAppearanceDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = when (currentThemeMode) {
+                                    AppThemeMode.SYSTEM -> Icons.Default.SettingsBrightness
+                                    AppThemeMode.LIGHT -> Icons.Default.LightMode
+                                    AppThemeMode.DARK -> Icons.Default.DarkMode
+                                },
+                                contentDescription = null,
+                                tint = QuickKitchenTheme.GreenPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "App Theme",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    color = QuickKitchenTheme.TextPrimary
+                                )
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = currentThemeMode.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 13.sp,
+                                    color = QuickKitchenTheme.TextSecondary
+                                )
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = QuickKitchenTheme.TextMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Group 4: Connection
             SettingsGroup(title = "Connection") {
                 Surface(
@@ -343,6 +410,18 @@ fun KitchenSettingsScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    // Dialog for Theme / Appearance Selection
+    if (showAppearanceDialog) {
+        AppearanceDialog(
+            currentThemeMode = currentThemeMode,
+            onSelectTheme = { mode ->
+                onThemeChange(mode)
+                showAppearanceDialog = false
+            },
+            onDismiss = { showAppearanceDialog = false }
         )
     }
 }

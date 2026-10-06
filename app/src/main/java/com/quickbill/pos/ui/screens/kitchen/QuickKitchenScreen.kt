@@ -18,16 +18,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quickbill.pos.data.model.kds.OrderStatus
+import com.quickbill.pos.data.repository.AppThemeMode
+import com.quickbill.pos.data.repository.ThemeRepository
 import kotlinx.coroutines.delay
 
 @Composable
 fun QuickKitchenScreen(
     viewModel: QuickKitchenViewModel,
+    themeRepository: ThemeRepository? = null,
     onChangeDeviceMode: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val configuration = LocalConfiguration.current
     val isTabletOrLandscape = configuration.screenWidthDp >= 600
+
+    val currentThemeMode by themeRepository?.themeMode?.collectAsState()
+        ?: remember { mutableStateOf(AppThemeMode.SYSTEM) }
 
     // Live elapsed timer ticking every 1000ms
     var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -73,6 +79,8 @@ fun QuickKitchenScreen(
         OrderDetailsScreen(
             order = detailOrder,
             items = detailOrder.items,
+            currentTimeMillis = currentTimeMillis,
+            warningThresholdMinutes = uiState.warningThresholdMinutes,
             onBackClick = { viewModel.closeOrderDetail() },
             onAdvanceStatus = { viewModel.advanceOrderStatus(detailOrder) },
             onViewBill = { /* Preview bill */ }
@@ -88,6 +96,8 @@ fun QuickKitchenScreen(
                 orders = uiState.allOrders,
                 activeCount = uiState.activeOrdersCount,
                 completedCount = uiState.completedOrdersCount,
+                currentTimeMillis = currentTimeMillis,
+                warningThresholdMinutes = uiState.warningThresholdMinutes,
                 onBackClick = { viewModel.selectNavTab(0) },
                 onOrderClick = { order -> viewModel.openOrderDetail(order) },
                 bottomBar = {
@@ -104,6 +114,8 @@ fun QuickKitchenScreen(
             KitchenSettingsScreen(
                 settings = uiState.settings,
                 isConnected = uiState.connectedClients > 0,
+                currentThemeMode = currentThemeMode,
+                onThemeChange = { mode -> themeRepository?.setThemeMode(mode) },
                 onBackClick = { viewModel.selectNavTab(0) },
                 onUpdateSettings = { updated -> viewModel.updateSettings(updated) },
                 onChangeDeviceMode = {
@@ -198,7 +210,7 @@ fun QuickKitchenScreen(
                                 ) {
                                     ChefHatBadge(
                                         size = 48,
-                                        backgroundColor = Color(0xFFF1F5F9),
+                                        backgroundColor = QuickKitchenTheme.SurfaceVariant,
                                         iconColor = QuickKitchenTheme.TextMuted
                                     )
                                     Text(

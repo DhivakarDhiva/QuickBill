@@ -38,7 +38,7 @@ fun KdsConnectionDialog(
     val pendingCount by orderSyncManager.outboxManager.pendingCountFlow.collectAsState(initial = 0)
 
     var manualIp by remember { mutableStateOf("") }
-    var manualPort by remember { mutableStateOf("8887") }
+    var manualPort by remember { mutableStateOf("8080") }
 
     LaunchedEffect(Unit) {
         orderSyncManager.discoveryManager.startDiscovery()
@@ -151,6 +151,16 @@ fun KdsConnectionDialog(
                             ) {
                                 Text("Disconnect")
                             }
+                        } else if (orderSyncManager.connectionManager.getLastConnectedHost().isNotBlank()) {
+                            Button(
+                                onClick = { orderSyncManager.connectionManager.reconnect() },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Reconnect")
+                            }
                         }
                     }
                 }
@@ -192,10 +202,27 @@ fun KdsConnectionDialog(
                 }
 
                 // Discovered KDS Displays (NSD)
-                Text(
-                    text = "Discovered Kitchen Devices",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Discovered Kitchen Devices",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    IconButton(
+                        onClick = { orderSyncManager.discoveryManager.startDiscovery() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Devices",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
 
                 if (discoveredServices.isEmpty()) {
                     Surface(
@@ -297,7 +324,7 @@ fun KdsConnectionDialog(
 
                 Button(
                     onClick = {
-                        val port = manualPort.toIntOrNull() ?: 8887
+                        val port = manualPort.toIntOrNull() ?: 8080
                         if (manualIp.isNotBlank()) {
                             orderSyncManager.connectionManager.connectToKds(manualIp.trim(), port)
                         }

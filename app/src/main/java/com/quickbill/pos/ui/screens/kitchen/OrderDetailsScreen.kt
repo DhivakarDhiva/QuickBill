@@ -32,6 +32,8 @@ import java.util.Locale
 fun OrderDetailsScreen(
     order: KitchenOrder,
     items: List<KitchenOrderItem>,
+    currentTimeMillis: Long = System.currentTimeMillis(),
+    warningThresholdMinutes: Int = 5,
     onBackClick: () -> Unit,
     onAdvanceStatus: () -> Unit,
     onViewBill: () -> Unit
@@ -77,26 +79,38 @@ fun OrderDetailsScreen(
                         )
                     }
 
-                    // Status Pill on top right
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = when (order.status) {
-                            OrderStatus.NEW -> QuickKitchenTheme.GreenPillBg
-                            OrderStatus.PREPARING -> QuickKitchenTheme.OrangePillBg
-                            OrderStatus.READY, OrderStatus.COMPLETED -> QuickKitchenTheme.GreenPillBg
-                            OrderStatus.CANCELLED -> QuickKitchenTheme.RedPillBg
-                        },
-                        border = BorderStroke(
-                            1.dp,
-                            when (order.status) {
-                                OrderStatus.NEW -> Color(0xFFBBF7D0)
-                                OrderStatus.PREPARING -> Color(0xFFFED7AA)
-                                OrderStatus.READY, OrderStatus.COMPLETED -> Color(0xFFBBF7D0)
-                                OrderStatus.CANCELLED -> Color(0xFFFECACA)
-                            }
-                        ),
+                    // Timer badge + Status Pill on top right
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
+                        if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
+                            QuickKitchenTimerBadge(
+                                createdAt = order.createdAt,
+                                currentTimeMillis = currentTimeMillis,
+                                warningThresholdMinutes = warningThresholdMinutes
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = when (order.status) {
+                                OrderStatus.NEW -> QuickKitchenTheme.GreenPillBg
+                                OrderStatus.PREPARING -> QuickKitchenTheme.OrangePillBg
+                                OrderStatus.READY, OrderStatus.COMPLETED -> QuickKitchenTheme.GreenPillBg
+                                OrderStatus.CANCELLED -> QuickKitchenTheme.RedPillBg
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                when (order.status) {
+                                    OrderStatus.NEW -> Color(0xFFBBF7D0)
+                                    OrderStatus.PREPARING -> Color(0xFFFED7AA)
+                                    OrderStatus.READY, OrderStatus.COMPLETED -> Color(0xFFBBF7D0)
+                                    OrderStatus.CANCELLED -> Color(0xFFFECACA)
+                                }
+                            )
+                        ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -132,8 +146,9 @@ fun OrderDetailsScreen(
                     }
                 }
             }
-        },
-        bottomBar = {
+        }
+    },
+    bottomBar = {
             Surface(
                 color = QuickKitchenTheme.Surface,
                 shadowElevation = 8.dp,
@@ -277,6 +292,14 @@ fun OrderDetailsScreen(
                             ) {
                                 val timeFormatted = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(order.createdAt))
                                 MetadataRow(Icons.Default.AccessTime, "Order Time", timeFormatted)
+                                val elapsedSec = ((currentTimeMillis - order.createdAt) / 1000L).coerceAtLeast(0L)
+                                val elapsedMin = elapsedSec / 60
+                                val elapsedStr = if (elapsedMin >= 60) {
+                                    String.format(Locale.US, "%02d:%02d:%02d", elapsedMin / 60, elapsedMin % 60, elapsedSec % 60)
+                                } else {
+                                    String.format(Locale.US, "%02d:%02d", elapsedMin, elapsedSec % 60)
+                                }
+                                MetadataRow(Icons.Default.Timer, "Elapsed Time", elapsedStr)
                                 MetadataRow(Icons.Default.Restaurant, "Dining Type", order.orderType.displayName)
                                 MetadataRow(Icons.Default.TableBar, "Table", if (order.tableNumber.isNotBlank()) "Table ${order.tableNumber}" else "Takeaway")
                                 MetadataRow(Icons.Default.Fastfood, "Items", "${items.sumOf { it.quantity }} items")

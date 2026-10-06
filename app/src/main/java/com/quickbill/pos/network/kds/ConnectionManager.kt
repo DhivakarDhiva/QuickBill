@@ -28,8 +28,8 @@ class ConnectionManager {
 
     companion object {
         private const val TAG = "ConnectionManager"
-        private const val BASE_RECONNECT_DELAY_MS = 2000L
-        private const val MAX_RECONNECT_DELAY_MS = 16000L
+        private const val BASE_RECONNECT_DELAY_MS = 1500L
+        private const val MAX_RECONNECT_DELAY_MS = 10000L
         private const val PING_INTERVAL_MS = 15000L
     }
 
@@ -40,7 +40,7 @@ class ConnectionManager {
     private var reconnectJob: Job? = null
     private var heartbeatJob: Job? = null
     private var currentHost: String = ""
-    private var currentPort: Int = 8887
+    private var currentPort: Int = 8080
     private var userDisconnected: Boolean = false
     private var reconnectAttempts: Int = 0
 
@@ -60,7 +60,7 @@ class ConnectionManager {
     private val _isServerRunning = MutableStateFlow(false)
     val isServerRunning: StateFlow<Boolean> = _isServerRunning.asStateFlow()
 
-    private val _serverPort = MutableStateFlow(8887)
+    private val _serverPort = MutableStateFlow(8080)
     val serverPort: StateFlow<Int> = _serverPort.asStateFlow()
 
     private val _connectedClientsCount = MutableStateFlow(0)
@@ -70,10 +70,13 @@ class ConnectionManager {
     private val _serverIncomingMessages = MutableSharedFlow<Pair<String, WebSocket>>(extraBufferCapacity = 64)
     val serverIncomingMessages: SharedFlow<Pair<String, WebSocket>> = _serverIncomingMessages.asSharedFlow()
 
+    fun getLastConnectedHost(): String = currentHost
+    fun getLastConnectedPort(): Int = currentPort
+
     // ==========================================
     // KDS Server Methods
     // ==========================================
-    fun startKdsServer(port: Int = 8887) {
+    fun startKdsServer(port: Int = 8080) {
         if (_isServerRunning.value && server != null) {
             if (_serverPort.value == port) return
             stopKdsServer()
@@ -105,7 +108,7 @@ class ConnectionManager {
 
     fun stopKdsServer() {
         try {
-            server?.stop()
+            server?.stopServer()
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping KDS WebSocket Server", e)
         }
@@ -127,7 +130,7 @@ class ConnectionManager {
     // ==========================================
     // POS Client Methods
     // ==========================================
-    fun connectToKds(host: String, port: Int = 8887) {
+    fun connectToKds(host: String, port: Int = 8080) {
         if (host.isBlank()) return
         userDisconnected = false
         currentHost = host
@@ -136,6 +139,17 @@ class ConnectionManager {
 
         disconnectClientInternal()
         initiateClientConnection()
+    }
+
+    fun reconnect() {
+        if (currentHost.isNotBlank()) {
+            userDisconnected = false
+            reconnectAttempts = 0
+            reconnectJob?.cancel()
+            reconnectJob = null
+            disconnectClientInternal()
+            initiateClientConnection()
+        }
     }
 
     private fun initiateClientConnection() {
@@ -152,7 +166,7 @@ class ConnectionManager {
 
         _connectionStatus.value = if (reconnectAttempts > 0) ConnectionStatus.RECONNECTING else ConnectionStatus.CONNECTING
 
-        client = PosWebSocketClient(
+        val newClient = PosWebSocketClient(
             serverUri = serverUri,
             onConnected = {
                 reconnectAttempts = 0
@@ -175,17 +189,15 @@ class ConnectionManager {
                 }
             },
             onErrorOccurred = { _ ->
+                // Handled gracefully in onDisconnected; do not double-schedule
                 stopHeartbeat()
-                if (!userDisconnected) {
-                    scheduleReconnect()
-                } else {
-                    _connectionStatus.value = ConnectionStatus.DISCONNECTED
-                }
             }
         )
 
+        client = newClient
+
         try {
-            client?.connect()
+            newClient.connect()
         } catch (e: Exception) {
             Log.e(TAG, "Client connect exception", e)
             scheduleReconnect()
@@ -194,6 +206,11 @@ class ConnectionManager {
 
     private fun scheduleReconnect() {
         if (userDisconnected) return
+        if (currentHost.isBlank()) {
+            _connectionStatus.value = ConnectionStatus.DISCONNECTED
+            return
+        }
+
         _connectionStatus.value = ConnectionStatus.RECONNECTING
         reconnectJob?.cancel()
 
@@ -206,6 +223,7 @@ class ConnectionManager {
         reconnectJob = scope.launch {
             delay(delayMs)
             if (!userDisconnected && isActive) {
+                disconnectClientInternal()
                 initiateClientConnection()
             }
         }
@@ -243,7 +261,7 @@ class ConnectionManager {
         stopHeartbeat()
 
         try {
-            client?.close()
+            client?.detachAndClose()
         } catch (e: Exception) {
             Log.e(TAG, "Error closing client", e)
         }
@@ -252,7 +270,7 @@ class ConnectionManager {
 
     fun sendFromClient(message: String): Boolean {
         val activeClient = client
-        return if (activeClient != null && activeClient.isOpen) {
+        return if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
             try {
                 activeClient.send(message)
                 true

@@ -10,9 +10,9 @@ data class KdsSettings(
     val warningThresholdMinutes: Int = 5,
     val soundAlertEnabled: Boolean = true,
     val vibrateAlertEnabled: Boolean = true,
-    val serverPort: Int = 8887,
+    val serverPort: Int = 8080,
     val manualKdsIp: String = "",
-    val manualKdsPort: Int = 8887
+    val manualKdsPort: Int = 8080
 )
 
 class KdsSettingsRepository(context: Context) {
@@ -27,9 +27,9 @@ class KdsSettingsRepository(context: Context) {
             warningThresholdMinutes = prefs.getInt("warning_threshold_minutes", 5),
             soundAlertEnabled = prefs.getBoolean("sound_alert_enabled", true),
             vibrateAlertEnabled = prefs.getBoolean("vibrate_alert_enabled", true),
-            serverPort = prefs.getInt("server_port", 8887),
+            serverPort = prefs.getInt("server_port", 8080),
             manualKdsIp = prefs.getString("manual_kds_ip", "") ?: "",
-            manualKdsPort = prefs.getInt("manual_kds_port", 8887)
+            manualKdsPort = prefs.getInt("manual_kds_port", 8080)
         )
     }
 

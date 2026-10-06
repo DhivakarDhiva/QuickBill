@@ -1,12 +1,6 @@
 package com.quickbill.pos.network.kds
 
 import android.util.Log
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import org.java_websocket.WebSocket
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ClientHandshake
@@ -64,6 +58,20 @@ class KdsWebSocketServer(
         broadcast(message)
     }
 
+    fun stopServer() {
+        try {
+            connectedClients.forEach { conn ->
+                try {
+                    conn.close(1000, "Server stopping")
+                } catch (_: Exception) {}
+            }
+            connectedClients.clear()
+            stop(1000)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping server", e)
+        }
+    }
+
     fun getClientCount(): Int = connectedClients.size
 }
 
@@ -79,12 +87,26 @@ class PosWebSocketClient(
         private const val TAG = "PosWebSocketClient"
     }
 
+    var isDetached: Boolean = false
+        private set
+
+    fun detachAndClose() {
+        isDetached = true
+        try {
+            close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing PosWebSocketClient", e)
+        }
+    }
+
     override fun onOpen(handshakedata: ServerHandshake?) {
+        if (isDetached) return
         Log.i(TAG, "Connected to KDS server at $uri")
         onConnected()
     }
 
     override fun onMessage(message: String?) {
+        if (isDetached) return
         if (message != null) {
             Log.d(TAG, "Received message from KDS: $message")
             onMessageReceived(message)
@@ -92,12 +114,14 @@ class PosWebSocketClient(
     }
 
     override fun onClose(code: Int, reason: String?, remote: Boolean) {
+        if (isDetached) return
         val details = "Code: $code, Reason: ${reason ?: "Unknown"}, Remote: $remote"
         Log.i(TAG, "Connection closed to KDS: $details")
         onDisconnected(details)
     }
 
     override fun onError(ex: Exception?) {
+        if (isDetached) return
         Log.e(TAG, "WebSocket client error", ex)
         onErrorOccurred(ex ?: Exception("Unknown error"))
     }

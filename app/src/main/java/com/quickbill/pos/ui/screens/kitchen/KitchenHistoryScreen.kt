@@ -30,6 +30,8 @@ fun KitchenHistoryScreen(
     orders: List<KitchenOrder>,
     activeCount: Int,
     completedCount: Int,
+    currentTimeMillis: Long = System.currentTimeMillis(),
+    warningThresholdMinutes: Int = 5,
     onBackClick: () -> Unit,
     onOrderClick: (KitchenOrder) -> Unit,
     bottomBar: @Composable () -> Unit = {}
@@ -131,6 +133,8 @@ fun KitchenHistoryScreen(
                     items(filteredOrders, key = { it.orderId }) { order ->
                         HistoryOrderRow(
                             order = order,
+                            currentTimeMillis = currentTimeMillis,
+                            warningThresholdMinutes = warningThresholdMinutes,
                             onClick = { onOrderClick(order) }
                         )
                     }
@@ -170,9 +174,12 @@ private fun FilterPillButton(
 @Composable
 private fun HistoryOrderRow(
     order: KitchenOrder,
+    currentTimeMillis: Long,
+    warningThresholdMinutes: Int,
     onClick: () -> Unit
 ) {
     val timeFormatted = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(order.createdAt))
+    val isCompleted = order.status == OrderStatus.COMPLETED || order.status == OrderStatus.CANCELLED
 
     Surface(
         onClick = onClick,
@@ -182,27 +189,55 @@ private fun HistoryOrderRow(
         shadowElevation = 0.5.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Row 1: #10042 on left, Status Pill on right
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Left Column: #10042, Metadata, Order Time
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = "#${order.orderNumber}",
-                    style = MaterialTheme.typography.titleSmall.copy(
+                    style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = QuickKitchenTheme.TextPrimary
                     )
                 )
 
+                val metadata = buildString {
+                    append(order.orderType.displayName)
+                    if (order.tableNumber.isNotBlank()) append(" · Table ${order.tableNumber}")
+                    val totalQty = if (order.items.isNotEmpty()) order.items.sumOf { it.quantity } else 1
+                    append(" · $totalQty items")
+                }
+                Text(
+                    text = metadata,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        color = QuickKitchenTheme.TextSecondary
+                    )
+                )
+
+                Text(
+                    text = timeFormatted,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        color = QuickKitchenTheme.TextMuted
+                    )
+                )
+            }
+
+            // Right Column: Status pill + Live Timer / Completion duration matching Reference Screen 11
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 // Status pill
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -246,32 +281,26 @@ private fun HistoryOrderRow(
                         )
                     }
                 }
-            }
 
-            // Row 2: Dine In · Table 3 · 4 items
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val metadata = buildString {
-                    append(order.orderType.displayName)
-                    if (order.tableNumber.isNotBlank()) append(" · Table ${order.tableNumber}")
+                if (!isCompleted) {
+                    QuickKitchenTimerBadge(
+                        createdAt = order.createdAt,
+                        currentTimeMillis = currentTimeMillis,
+                        warningThresholdMinutes = warningThresholdMinutes
+                    )
+                } else {
+                    val durationSec = ((order.updatedAt - order.createdAt) / 1000L).coerceAtLeast(0L)
+                    val durationMin = durationSec / 60
+                    val durationStr = String.format(Locale.US, "%02d:%02d", durationMin, durationSec % 60)
+                    Text(
+                        text = durationStr,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            color = QuickKitchenTheme.TextMuted
+                        )
+                    )
                 }
-                Text(
-                    text = metadata,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        color = QuickKitchenTheme.TextSecondary
-                    )
-                )
-                Text(
-                    text = timeFormatted,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        color = QuickKitchenTheme.TextMuted
-                    )
-                )
             }
         }
     }

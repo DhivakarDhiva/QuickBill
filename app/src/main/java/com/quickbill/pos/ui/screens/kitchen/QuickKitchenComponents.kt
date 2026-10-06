@@ -239,6 +239,76 @@ private fun StatusTabCard(
 }
 
 // =========================================================================
+// Live Order Timer Badge matching Reference
+// =========================================================================
+@Composable
+fun QuickKitchenTimerBadge(
+    createdAt: Long,
+    currentTimeMillis: Long,
+    warningThresholdMinutes: Int = 5,
+    modifier: Modifier = Modifier
+) {
+    val elapsedSeconds = ((currentTimeMillis - createdAt) / 1000L).coerceAtLeast(0L)
+    val elapsedMinutes = elapsedSeconds / 60
+    val isOverdue = elapsedMinutes >= warningThresholdMinutes
+    val isWarning = elapsedMinutes >= (warningThresholdMinutes - 1) && !isOverdue
+
+    val timerText = if (elapsedMinutes >= 60) {
+        val hours = elapsedMinutes / 60
+        val remainingMin = elapsedMinutes % 60
+        String.format(Locale.US, "%02d:%02d:%02d", hours, remainingMin, elapsedSeconds % 60)
+    } else {
+        String.format(Locale.US, "%02d:%02d", elapsedMinutes, elapsedSeconds % 60)
+    }
+
+    val backgroundColor = when {
+        isOverdue -> QuickKitchenTheme.RedPillBg
+        isWarning -> QuickKitchenTheme.OrangePillBg
+        else -> QuickKitchenTheme.SurfaceVariant
+    }
+
+    val textColor = when {
+        isOverdue -> QuickKitchenTheme.RedPrimary
+        isWarning -> QuickKitchenTheme.OrangePrimary
+        else -> QuickKitchenTheme.TextSecondary
+    }
+
+    val borderColor = when {
+        isOverdue -> Color(0xFFFECACA)
+        isWarning -> Color(0xFFFED7AA)
+        else -> QuickKitchenTheme.BorderSubtle
+    }
+
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Timer,
+                contentDescription = null,
+                tint = textColor,
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = timerText,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = textColor
+                )
+            )
+        }
+    }
+}
+
+// =========================================================================
 // Order Card matching Reference Screen 5, 6, 7
 // =========================================================================
 @Composable
@@ -292,21 +362,11 @@ fun QuickKitchenOrderCard(
                     )
                 )
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isOverdue) QuickKitchenTheme.RedPillBg else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isOverdue) Color(0xFFFECACA) else Color(0xFFE2E8F0))
-                ) {
-                    Text(
-                        text = timerText,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = if (isOverdue) QuickKitchenTheme.RedPrimary else QuickKitchenTheme.TextSecondary
-                        ),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
+                QuickKitchenTimerBadge(
+                    createdAt = order.createdAt,
+                    currentTimeMillis = currentTimeMillis,
+                    warningThresholdMinutes = warningThresholdMinutes
+                )
             }
 
             // Order metadata: Dine In · Table 3 · 4 items
