@@ -17,8 +17,12 @@ koin = "4.0.0"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
 espresso = "3.6.1"
+javaWebsocket = "1.5.7"
 
 [libraries]
+# Java-WebSocket for Local POS <-> KDS Real-Time Communication
+java-websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "javaWebsocket" }
+
 # Koin Dependency Injection
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }

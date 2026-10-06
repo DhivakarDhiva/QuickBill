@@ -1,4 +1,4 @@
-# QuickBill POS
+# QuickBill POS & QuickKitchen KDS
 
 [![Platform](https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-brightgreen.svg)](https://developer.android.com)
 [![Target SDK](https://img.shields.io/badge/Target_SDK-35-blue.svg)](https://developer.android.com)
@@ -6,10 +6,14 @@
 [![Compose](https://img.shields.io/badge/Compose-BOM_2024.12.01-informational.svg)](https://developer.android.com/jetpack/compose)
 [![Room](https://img.shields.io/badge/Room-2.6.1-orange.svg)](https://developer.android.com/training/data-storage/room)
 [![Koin](https://img.shields.io/badge/Koin-4.0.0-critical.svg)](https://insert-koin.io)
+[![WebSocket](https://img.shields.io/badge/WebSocket-Java--WebSocket_1.5.7-success.svg)](https://github.com/TooTallNate/Java-WebSocket)
 
-An offline-first Android Point of Sale (POS) and inventory management app built with modern Android development practices: **Kotlin 2.1**, **Jetpack Compose (Material 3)**, **Room Database**, **Koin DI**, and **Coroutines / Flow**.
+An offline-first Android Point of Sale (POS) and **QuickKitchen Kitchen Display System (KDS)** packaged into **a SINGLE Android APK / Single Android project**.
 
-Designed for retail counters, grocery stores, and small businesses needing fast terminal checkouts, GST compliance (CGST + SGST split), barcode scanning, split payments, thermal receipts, and local sales reporting without internet dependencies.
+The same APK can be installed on two Android devices connected to the same Wi-Fi network:
+- **Device 1**: Operates in **POS Mode** (Billing Terminal, Inventory, Payments, PDF Receipts).
+- **Device 2**: Operates in **KDS Mode** (Kitchen Display System with live elapsed timers, order preparation stages, and audio/vibrate alerts).
+- **Local Network Sync**: Fully autonomous local communication via **Android NSD (Network Service Discovery)** and **real-time WebSocket** (no continuous polling, zero cloud/internet dependencies).
 
 ---
 
@@ -39,9 +43,12 @@ https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
 
 Download and install the pre-compiled APK directly on any Android Phone:
 
-| **QuickBill POS (Release Build)** | **11.5 MB** | [📥 **Download app-release.apk**](apk/app-release.apk) |
+| Build Variant | Architecture | APK Size | Direct Download |
+|---|---|---|---|
+| **QuickBill POS & QuickKitchen KDS (Release Build)** | `arm64-v8a`, `armeabi-v7a` | **11.6 MB** | [📥 **Download app-release.apk**](apk/app-release.apk) |
 
-> **Signed & Optimized**: Pre-signed with R8 code shrinking and ARM filtering for physical Android phones and tablets. Runs smoothly at 60/120 FPS with minimal RAM usage.
+
+> **Single APK Dual-Mode**: Install the exact same APK on both devices. On first launch, select **POS** on Device 1 and **KDS** on Device 2. Switch roles anytime via *Settings → Change Device Mode*.
 
 ### Quick Installation:
 1. **Direct on Device**: Download the APK file on your Android device, tap to open, and allow *"Install unknown apps"* if prompted.
@@ -52,6 +59,69 @@ Download and install the pre-compiled APK directly on any Android Phone:
    ```
 
 ---
+
+## 🍳 QuickKitchen KDS & Dual-Device Setup
+
+### How Dual-Device Communication Works
+```
++-----------------------------+                  +-----------------------------+
+|        DEVICE 1: POS        |                  |        DEVICE 2: KDS        |
+|  (Billing & Checkout Desk)  |                  |    (Kitchen Food Station)   |
++-----------------------------+                  +-----------------------------+
+              |                                                 |
+              | 1. Auto-discover via NSD (_quickbill._tcp)      | Advertises on Port 8887
+              |------------------------------------------------>|
+              |                                                 |
+              | 2. Persistent WebSocket Connection              | Listens for POS clients
+              |<===============================================>|
+              |                                                 |
+  Checkout -> | 3. ORDER_CREATED event                          |
+  Completed   |------------------------------------------------>| -> Sound & Vibration Alert
+              |                                                 | -> Live Elapsed Timer Starts
+              | 4. ORDER_ACK (Event processed)                  |
+              |<------------------------------------------------|
+              |                                                 |
+              |                                                 | Chef taps "Start Preparing"
+              | 5. STATUS_CHANGED (PREPARING / READY / DONE)    | or "Mark Ready"
+              |<------------------------------------------------|
+              |                                                 |
+  Offline? -> | 6. Stores in Room Outbox (`pending_events`)     |
+              |    Auto-drains in FIFO order upon reconnect     |
++-----------------------------+                  +-----------------------------+
+```
+
+### Step-by-Step 2-Device Demo Instructions:
+1. **Connect to the same Wi-Fi network** on both Android devices (or emulators).
+2. **Device 1 (Counter/POS)**:
+   - Launch QuickBill.
+   - On the first-launch screen, select **"POS Mode (Point of Sale)"**.
+   - Login with default credentials: `admin` / `1234`.
+3. **Device 2 (Kitchen)**:
+   - Launch QuickBill.
+   - On the first-launch screen, select **"KDS Mode (QuickKitchen Display)"**.
+   - The kitchen dashboard will start its WebSocket server on port `8887` and advertise via NSD. It displays its local Wi-Fi IP (e.g., `ws://192.168.1.15:8887`).
+4. **Auto-Connecting**:
+   - On Device 1 (POS), tap the **`KDS`** status chip on the top bar.
+   - The **Kitchen Display Dialog** will show the automatically discovered `QuickKitchen-KDS` unit. Tap **Connect** (or enter the IP manually if mDNS multicast is restricted by your router).
+   - The status chip turns **🟢 Connected to Kitchen**.
+5. **Placing & Fulfilling an Order**:
+   - On POS, add items to the cart and tap **Proceed to Payment**.
+   - Complete checkout (Cash/Card/UPI).
+   - **Immediately**, Device 2 (Kitchen) beeps/vibrates and displays a new order card with item details, veg/non-veg tags, and a live elapsed timer (`00:01`, `00:02`...).
+   - If cooking exceeds the warning threshold (default 5 min), the card turns **amber/red** with a prominent **⚠️ LATE** badge.
+   - Kitchen staff taps **[Start Preparing]** → changes status to `PREPARING` and notifies POS.
+   - Kitchen staff taps **[Mark Ready]** → changes status to `READY`.
+   - Kitchen staff taps **[Complete Order]** → moves order to history tab.
+6. **Testing Offline Resilience**:
+   - Disconnect Wi-Fi on POS.
+   - Generate 2-3 bills on POS. Notice the top bar chip shows `🔴 KDS Offline (3 queued)`.
+   - Re-enable Wi-Fi. The outbox automatically drains in FIFO sequence and sends all queued orders to KDS without data loss or duplicates!
+7. **Changing Device Mode**:
+   - On POS: Tap user avatar → **Change Device Mode** (or in the navigation drawer).
+   - On KDS: Tap settings icon (gear) in the top bar → **Change Device Mode**.
+
+---
+
 
 ## Tech Stack & Architecture Decisions
 

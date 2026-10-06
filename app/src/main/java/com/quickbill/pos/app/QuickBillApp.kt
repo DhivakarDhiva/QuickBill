@@ -33,6 +33,8 @@ class QuickBillApp : Application() {
     val reportRepository: ReportRepository by inject()
     val themeRepository: ThemeRepository by inject()
     val networkMonitor: NetworkMonitor by inject()
+    val deviceModeRepository: com.quickbill.pos.data.repository.DeviceModeRepository by inject()
+    val orderSyncManager: com.quickbill.pos.network.kds.OrderSyncManager by inject()
 
     override fun onCreate() {
         super.onCreate()

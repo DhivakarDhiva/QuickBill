@@ -27,6 +27,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 
+import com.quickbill.pos.data.model.kds.KitchenOrder
+import com.quickbill.pos.data.model.kds.KitchenOrderItem
+import com.quickbill.pos.data.model.kds.OrderStatus
+import com.quickbill.pos.data.model.kds.OrderType
+import com.quickbill.pos.network.kds.OrderSyncManager
+import java.util.UUID
+
 data class BillingUiState(
     val searchQuery: String = "",
     val selectedCategory: String = "",
@@ -47,7 +54,8 @@ data class BillingUiState(
 class BillingViewModel(
     private val productRepository: ProductRepository,
     private val billingRepository: BillingRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val orderSyncManager: OrderSyncManager? = null
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -358,6 +366,30 @@ class BillingViewModel(
                     completedBill = billWithDetails,
                     successMessage = "Bill #${billWithDetails.bill.billNumber} generated successfully!"
                 )
+
+                // Dispatch order to Kitchen Display System (KDS) via outbox & WebSocket
+                val newOrderId = UUID.randomUUID().toString()
+                val kitchenOrder = KitchenOrder(
+                    orderId = newOrderId,
+                    orderNumber = billWithDetails.bill.billNumber,
+                    customerName = customerName,
+                    notes = billWithDetails.bill.notes,
+                    orderType = OrderType.DINE_IN,
+                    status = OrderStatus.NEW,
+                    items = billWithDetails.items.map { item ->
+                        KitchenOrderItem(
+                            orderId = newOrderId,
+                            productId = item.productId,
+                            name = item.productName,
+                            quantity = item.quantity,
+                            unitPrice = item.unitPrice,
+                            notes = "",
+                            isVeg = true
+                        )
+                    }
+                )
+                orderSyncManager?.sendOrder(kitchenOrder)
+
                 clearCart()
             }.onFailure { error ->
                 _dialogState.value = _dialogState.value.copy(

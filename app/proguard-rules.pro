@@ -26,6 +26,10 @@
 -keep class androidx.camera.camera2.** { *; }
 -keep class androidx.camera.view.** { *; }
 
+# Java-WebSocket
+-keep class org.java_websocket.** { *; }
+-dontwarn org.java_websocket.**
+
 # General optimizations
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 -dontwarn sun.misc.Unsafe

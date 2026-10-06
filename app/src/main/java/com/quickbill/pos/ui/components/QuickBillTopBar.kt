@@ -35,7 +35,11 @@ fun QuickBillTopBar(
     heldCartCount: Int = 0,
     canNavigateBack: Boolean = false,
     onBackClick: () -> Unit = {},
-    onAppearanceClick: () -> Unit = {}
+    onAppearanceClick: () -> Unit = {},
+    onKdsClick: () -> Unit = {},
+    onChangeDeviceModeClick: () -> Unit = {},
+    kdsStatus: com.quickbill.pos.network.kds.ConnectionStatus = com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED,
+    kdsPendingCount: Int = 0
 ) {
     var showUserMenu by remember { mutableStateOf(false) }
 
@@ -130,6 +134,56 @@ fun QuickBillTopBar(
                     }
                 }
 
+                // KDS Connection Status Chip
+                Surface(
+                    onClick = onKdsClick,
+                    shape = RoundedCornerShape(10.dp),
+                    color = when (kdsStatus) {
+                        com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> Color(0xFFDCFCE7)
+                        com.quickbill.pos.network.kds.ConnectionStatus.CONNECTING,
+                        com.quickbill.pos.network.kds.ConnectionStatus.RECONNECTING -> Color(0xFFFEF9C3)
+                        com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED -> if (kdsPendingCount > 0) Color(0xFFFEE2E2) else Color(0xFFF1F5F9)
+                    },
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when (kdsStatus) {
+                                        com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> Color(0xFF16A34A)
+                                        com.quickbill.pos.network.kds.ConnectionStatus.CONNECTING,
+                                        com.quickbill.pos.network.kds.ConnectionStatus.RECONNECTING -> Color(0xFFCA8A04)
+                                        com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED -> if (kdsPendingCount > 0) Color(0xFFDC2626) else Color(0xFF94A3B8)
+                                    }
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = when (kdsStatus) {
+                                com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> "KDS"
+                                com.quickbill.pos.network.kds.ConnectionStatus.CONNECTING,
+                                com.quickbill.pos.network.kds.ConnectionStatus.RECONNECTING -> "KDS..."
+                                com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED -> if (kdsPendingCount > 0) "KDS ($kdsPendingCount)" else "KDS"
+                            },
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = when (kdsStatus) {
+                                    com.quickbill.pos.network.kds.ConnectionStatus.CONNECTED -> Color(0xFF166534)
+                                    com.quickbill.pos.network.kds.ConnectionStatus.CONNECTING,
+                                    com.quickbill.pos.network.kds.ConnectionStatus.RECONNECTING -> Color(0xFF854D0E)
+                                    com.quickbill.pos.network.kds.ConnectionStatus.DISCONNECTED -> if (kdsPendingCount > 0) Color(0xFF991B1B) else Color(0xFF475569)
+                                }
+                            )
+                        )
+                    }
+                }
+
                 // Avatar Circle Button ('A' for Admin, 'C' for Cashier)
                 if (currentUser != null) {
                     val roleLetter = if (currentUser.role == UserRole.ADMIN) "A" else "C"
@@ -173,6 +227,37 @@ fun QuickBillTopBar(
                             )
                             HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
                             DropdownMenuItem(
+                                text = { Text("Kitchen Display (KDS)", color = TextPrimaryLight) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Restaurant,
+                                        contentDescription = null,
+                                        tint = EmeraldPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showUserMenu = false
+                                    onKdsClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Change Device Mode", color = TextPrimaryLight) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Devices,
+                                        contentDescription = null,
+                                        tint = EmeraldPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showUserMenu = false
+                                    onChangeDeviceModeClick()
+                                }
+                            )
+                            HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
+                            DropdownMenuItem(
                                 text = { Text("Appearance", color = TextPrimaryLight) },
                                 leadingIcon = {
                                     Icon(
@@ -189,6 +274,7 @@ fun QuickBillTopBar(
                             )
                             HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
                             DropdownMenuItem(
+
                                 text = { Text("Sign Out", color = ErrorCoral) },
                                 leadingIcon = {
                                     Icon(

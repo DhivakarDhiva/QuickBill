@@ -9,13 +9,20 @@ import com.quickbill.pos.data.local.dao.BillDao
 import com.quickbill.pos.data.local.dao.BillItemDao
 import com.quickbill.pos.data.local.dao.BillPaymentDao
 import com.quickbill.pos.data.local.dao.HeldCartDao
+import com.quickbill.pos.data.local.dao.OrderDao
+import com.quickbill.pos.data.local.dao.PendingEventDao
 import com.quickbill.pos.data.local.dao.ProductDao
+import com.quickbill.pos.data.local.dao.ReceivedEventDao
 import com.quickbill.pos.data.local.dao.UserDao
 import com.quickbill.pos.data.local.entity.BillEntity
 import com.quickbill.pos.data.local.entity.BillItemEntity
 import com.quickbill.pos.data.local.entity.BillPaymentEntity
 import com.quickbill.pos.data.local.entity.HeldCartEntity
+import com.quickbill.pos.data.local.entity.OrderEntity
+import com.quickbill.pos.data.local.entity.OrderItemEntity
+import com.quickbill.pos.data.local.entity.PendingEventEntity
 import com.quickbill.pos.data.local.entity.ProductEntity
+import com.quickbill.pos.data.local.entity.ReceivedEventEntity
 import com.quickbill.pos.data.local.entity.UserEntity
 
 @Database(
@@ -25,9 +32,13 @@ import com.quickbill.pos.data.local.entity.UserEntity
         BillItemEntity::class,
         BillPaymentEntity::class,
         UserEntity::class,
-        HeldCartEntity::class
+        HeldCartEntity::class,
+        OrderEntity::class,
+        OrderItemEntity::class,
+        PendingEventEntity::class,
+        ReceivedEventEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -38,6 +49,10 @@ abstract class QuickBillDatabase : RoomDatabase() {
     abstract fun billPaymentDao(): BillPaymentDao
     abstract fun userDao(): UserDao
     abstract fun heldCartDao(): HeldCartDao
+    abstract fun orderDao(): OrderDao
+    abstract fun pendingEventDao(): PendingEventDao
+    abstract fun receivedEventDao(): ReceivedEventDao
+
 
     companion object {
         @Volatile

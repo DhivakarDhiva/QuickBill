@@ -26,6 +26,9 @@ val appModule = module {
     single { get<QuickBillDatabase>().billItemDao() }
     single { get<QuickBillDatabase>().billPaymentDao() }
     single { get<QuickBillDatabase>().heldCartDao() }
+    single { get<QuickBillDatabase>().orderDao() }
+    single { get<QuickBillDatabase>().pendingEventDao() }
+    single { get<QuickBillDatabase>().receivedEventDao() }
 
     // Repositories & Utilities
     single { AuthRepository(get(), androidContext()) }
@@ -34,6 +37,22 @@ val appModule = module {
     single { ReportRepository(get()) }
     single { ThemeRepository(androidContext()) }
     single { NetworkMonitor(androidContext()) }
+    single { com.quickbill.pos.data.repository.DeviceModeRepository(androidContext()) }
+    single { com.quickbill.pos.data.repository.KdsSettingsRepository(androidContext()) }
+    single { com.quickbill.pos.network.kds.NsdDiscoveryManager(androidContext()) }
+    single { com.quickbill.pos.network.kds.ConnectionManager() }
+    single { com.quickbill.pos.network.kds.OutboxManager(get()) }
+    single {
+        com.quickbill.pos.network.kds.OrderSyncManager(
+            context = androidContext(),
+            orderDao = get(),
+            receivedEventDao = get(),
+            outboxManager = get(),
+            connectionManager = get(),
+            discoveryManager = get(),
+            kdsSettingsRepository = get()
+        )
+    }
 
     // ViewModels
     viewModel {
@@ -48,7 +67,8 @@ val appModule = module {
         BillingViewModel(
             productRepository = get(),
             billingRepository = get(),
-            authRepository = get()
+            authRepository = get(),
+            orderSyncManager = get()
         )
     }
     viewModel {
@@ -66,4 +86,14 @@ val appModule = module {
     viewModel {
         ReportsViewModel(reportRepository = get())
     }
+    viewModel {
+        com.quickbill.pos.ui.screens.kitchen.QuickKitchenViewModel(
+            orderDao = get(),
+            orderSyncManager = get(),
+            connectionManager = get(),
+            discoveryManager = get(),
+            settingsRepository = get()
+        )
+    }
 }
+

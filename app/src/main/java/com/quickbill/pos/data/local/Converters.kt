@@ -46,4 +46,35 @@ class Converters {
     } catch (_: Exception) {
         UserRole.CASHIER
     }
+
+    @TypeConverter
+    fun fromOrderStatus(value: com.quickbill.pos.data.model.kds.OrderStatus): String = value.name
+
+    @TypeConverter
+    fun toOrderStatus(value: String): com.quickbill.pos.data.model.kds.OrderStatus = try {
+        com.quickbill.pos.data.model.kds.OrderStatus.valueOf(value)
+    } catch (_: Exception) {
+        com.quickbill.pos.data.model.kds.OrderStatus.NEW
+    }
+
+    @TypeConverter
+    fun fromOrderEventType(value: com.quickbill.pos.data.model.kds.OrderEventType): String = value.name
+
+    @TypeConverter
+    fun toOrderEventType(value: String): com.quickbill.pos.data.model.kds.OrderEventType = try {
+        com.quickbill.pos.data.model.kds.OrderEventType.valueOf(value)
+    } catch (_: Exception) {
+        com.quickbill.pos.data.model.kds.OrderEventType.ORDER_CREATED
+    }
+
+    @TypeConverter
+    fun fromOrderType(value: com.quickbill.pos.data.model.kds.OrderType): String = value.name
+
+    @TypeConverter
+    fun toOrderType(value: String): com.quickbill.pos.data.model.kds.OrderType = try {
+        com.quickbill.pos.data.model.kds.OrderType.valueOf(value)
+    } catch (_: Exception) {
+        com.quickbill.pos.data.model.kds.OrderType.DINE_IN
+    }
 }
+

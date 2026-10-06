@@ -82,6 +82,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // Java-WebSocket for POS <-> KDS communication
+    implementation(libs.java.websocket)
+
     // CameraX and ML Kit for Barcode Scanner
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
@@ -93,6 +96,7 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

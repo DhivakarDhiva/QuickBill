@@ -44,6 +44,8 @@ fun QuickBillNavDrawerContent(
     currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onSelectTheme: (AppThemeMode) -> Unit = {},
     onOpenAppearanceDialog: () -> Unit = {},
+    onKdsClick: () -> Unit = {},
+    onChangeDeviceModeClick: () -> Unit = {},
     onNavigate: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onLogoutClick: () -> Unit
@@ -292,6 +294,61 @@ fun QuickBillNavDrawerContent(
             // Drawer Footer with Logout
             // =========================================================================
             HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
+
+            NavigationDrawerItem(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = "Kitchen Display (KDS)",
+                        tint = EmeraldPrimary
+                    )
+                },
+                label = {
+                    Text(
+                        text = "Kitchen Display (KDS)",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimaryLight
+                        )
+                    )
+                },
+                selected = false,
+                onClick = {
+                    onCloseDrawer()
+                    onKdsClick()
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+            )
+
+            NavigationDrawerItem(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Devices,
+                        contentDescription = "Change Device Mode",
+                        tint = EmeraldPrimary
+                    )
+                },
+                label = {
+                    Text(
+                        text = "Change Device Mode",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimaryLight
+                        )
+                    )
+                },
+                selected = false,
+                onClick = {
+                    onCloseDrawer()
+                    onChangeDeviceModeClick()
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+            )
+
+            HorizontalDivider(color = OutlineLight.copy(alpha = 0.5f))
+
 
             NavigationDrawerItem(
                 icon = {

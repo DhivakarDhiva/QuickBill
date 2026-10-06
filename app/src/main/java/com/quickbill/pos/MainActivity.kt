@@ -57,6 +57,11 @@ import com.quickbill.pos.ui.theme.SwiftUiMotion
 import com.quickbill.pos.app.QuickBillApp
 import com.quickbill.pos.ui.components.NetworkDisconnectedDialog
 import com.quickbill.pos.ui.components.NetworkConnectedDialog
+import com.quickbill.pos.ui.components.KdsConnectionDialog
+import com.quickbill.pos.data.model.kds.DeviceMode
+import com.quickbill.pos.ui.screens.mode.DeviceModeSelectionScreen
+import com.quickbill.pos.ui.screens.kitchen.QuickKitchenScreen
+import com.quickbill.pos.ui.screens.kitchen.QuickKitchenViewModel
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 
@@ -82,22 +87,43 @@ class MainActivity : ComponentActivity() {
                 themeMode = themeMode,
                 onThemeChange = { mode -> app.themeRepository.setThemeMode(mode) }
             ) {
-                val navController = rememberNavController()
-                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-                val coroutineScope = rememberCoroutineScope()
+                val deviceMode by app.deviceModeRepository.deviceMode.collectAsState()
 
-                var showAppearanceDialog by remember { mutableStateOf(false) }
+                if (deviceMode == null) {
+                    DeviceModeSelectionScreen(
+                        onModeSelected = { mode ->
+                            app.deviceModeRepository.setDeviceMode(mode)
+                        }
+                    )
+                } else if (deviceMode == DeviceMode.KDS) {
+                    val kitchenViewModel: QuickKitchenViewModel = koinViewModel()
+                    QuickKitchenScreen(
+                        viewModel = kitchenViewModel,
+                        onChangeDeviceMode = {
+                            app.deviceModeRepository.setDeviceMode(null)
+                        }
+                    )
+                } else {
+                    val navController = rememberNavController()
+                    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                    val coroutineScope = rememberCoroutineScope()
 
-                // State from App repositories injected via Koin
-                val currentUser by app.authRepository.currentUser.collectAsState()
-                val isOnline by app.networkMonitor.isOnline.collectAsState(initial = true)
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route 
-                    ?: if (currentUser == null) Screen.Login.route else (if (currentUser?.role == UserRole.ADMIN) Screen.Dashboard.route else Screen.Billing.route)
+                    var showAppearanceDialog by remember { mutableStateOf(false) }
+                    var showKdsConnectionDialog by remember { mutableStateOf(false) }
 
-                // Network status check and popup dialog triggers
-                var isDisconnectedDialogOpen by remember { mutableStateOf(false) }
-                var isConnectedDialogOpen by remember { mutableStateOf(false) }
+                    // State from App repositories injected via Koin
+                    val currentUser by app.authRepository.currentUser.collectAsState()
+                    val isOnline by app.networkMonitor.isOnline.collectAsState(initial = true)
+                    val kdsStatus by app.orderSyncManager.connectionManager.connectionStatus.collectAsState()
+                    val kdsPendingCount by app.orderSyncManager.outboxManager.pendingCountFlow.collectAsState(initial = 0)
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route 
+                        ?: if (currentUser == null) Screen.Login.route else (if (currentUser?.role == UserRole.ADMIN) Screen.Dashboard.route else Screen.Billing.route)
+
+                    // Network status check and popup dialog triggers
+                    var isDisconnectedDialogOpen by remember { mutableStateOf(false) }
+                    var isConnectedDialogOpen by remember { mutableStateOf(false) }
+
                 var hasCheckedInitialNetwork by remember { mutableStateOf(false) }
 
                 LaunchedEffect(isOnline) {
@@ -250,6 +276,12 @@ class MainActivity : ComponentActivity() {
                             onOpenAppearanceDialog = {
                                 showAppearanceDialog = true
                             },
+                            onKdsClick = {
+                                showKdsConnectionDialog = true
+                            },
+                            onChangeDeviceModeClick = {
+                                app.deviceModeRepository.setDeviceMode(null)
+                            },
                             onNavigate = { route ->
                                 coroutineScope.launch { drawerState.close() }
                                 navigateToTab(route)
@@ -294,12 +326,21 @@ class MainActivity : ComponentActivity() {
                                     onAppearanceClick = {
                                         showAppearanceDialog = true
                                     },
+                                    onKdsClick = {
+                                        showKdsConnectionDialog = true
+                                    },
+                                    onChangeDeviceModeClick = {
+                                        app.deviceModeRepository.setDeviceMode(null)
+                                    },
+                                    kdsStatus = kdsStatus,
+                                    kdsPendingCount = kdsPendingCount,
                                     onLogoutClick = {
                                         performLogout()
                                     }
                                 )
                             }
                         }
+
                     ) { innerPadding ->
                         val topPadding = if (!isAuthScreen && !isModalActive) {
                             innerPadding.calculateTopPadding()
@@ -454,6 +495,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+
 
             // Network check popup dialogs (Offline and Connected)
             if (isDisconnectedDialogOpen) {
@@ -479,8 +522,17 @@ class MainActivity : ComponentActivity() {
                     onDismiss = { showAppearanceDialog = false }
                 )
             }
+
+            // KDS Connection Dialog
+            if (showKdsConnectionDialog) {
+                KdsConnectionDialog(
+                    orderSyncManager = app.orderSyncManager,
+                    onDismiss = { showKdsConnectionDialog = false }
+                )
+            }
         }
     }
 }
 }
 }
+
