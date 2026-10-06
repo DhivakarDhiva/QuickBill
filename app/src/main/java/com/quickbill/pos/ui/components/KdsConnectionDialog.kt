@@ -43,6 +43,13 @@ fun KdsConnectionDialog(
     var manualIp by remember { mutableStateOf(lastHost) }
     var manualPort by remember { mutableStateOf(if (lastPort != "0" && lastPort.isNotBlank()) lastPort else "8080") }
 
+    LaunchedEffect(orderSyncManager.connectionManager.getLastConnectedHost()) {
+        val h = orderSyncManager.connectionManager.getLastConnectedHost()
+        if (h.isNotBlank() && manualIp.isBlank()) {
+            manualIp = h
+        }
+    }
+
     LaunchedEffect(Unit) {
         orderSyncManager.discoveryManager.startDiscovery()
     }

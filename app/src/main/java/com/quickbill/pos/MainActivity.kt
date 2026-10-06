@@ -89,6 +89,29 @@ class MainActivity : ComponentActivity() {
             ) {
                 val deviceMode by app.deviceModeRepository.deviceMode.collectAsState()
 
+                // Coordinate clean network lifecycle transitions on device mode switches
+                LaunchedEffect(deviceMode) {
+                    when (deviceMode) {
+                        DeviceMode.KDS -> {
+                            // Disconnect any active POS client and discovery on this device
+                            app.orderSyncManager.connectionManager.disconnectClient()
+                            app.orderSyncManager.discoveryManager.stopDiscovery()
+                        }
+                        DeviceMode.POS -> {
+                            // Ensure KDS server and advertiser on this device are stopped
+                            app.orderSyncManager.connectionManager.stopKdsServer()
+                            app.orderSyncManager.discoveryManager.stopAdvertising()
+                        }
+                        null -> {
+                            // On mode selection screen, clean up both roles
+                            app.orderSyncManager.connectionManager.stopKdsServer()
+                            app.orderSyncManager.discoveryManager.stopAdvertising()
+                            app.orderSyncManager.connectionManager.disconnectClient()
+                            app.orderSyncManager.discoveryManager.stopDiscovery()
+                        }
+                    }
+                }
+
                 if (deviceMode == null) {
                     DeviceModeSelectionScreen(
                         onModeSelected = { mode ->

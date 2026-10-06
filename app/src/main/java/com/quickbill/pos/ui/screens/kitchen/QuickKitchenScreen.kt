@@ -44,6 +44,15 @@ fun QuickKitchenScreen(
         }
     }
 
+    // Ensure KDS services (WebSocket Server & NSD Advertising) are running when KDS screen is active,
+    // and stopped cleanly when leaving KDS mode
+    DisposableEffect(Unit) {
+        viewModel.startKdsServices()
+        onDispose {
+            viewModel.stopKdsServices()
+        }
+    }
+
     // Screen 3: Kitchen Display Setup (if not completed)
     if (!uiState.isSetupComplete) {
         KitchenSetupScreen(

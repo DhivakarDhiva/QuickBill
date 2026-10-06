@@ -5,6 +5,11 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,12 +33,15 @@ class NsdDiscoveryManager(private val context: Context) {
         const val DEFAULT_PORT = 8080
     }
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
     private var multicastLock: WifiManager.MulticastLock? = null
 
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private var currentAdvertisedName: String = ""
+    private var currentAdvertisedPort: Int = 0
 
     // Sequential service resolution queue to prevent Android NSD FAILURE_ALREADY_ACTIVE
     private val resolveQueue = ArrayDeque<NsdServiceInfo>()
@@ -81,10 +89,19 @@ class NsdDiscoveryManager(private val context: Context) {
             Log.e(TAG, "NsdManager not available")
             return
         }
-        if (_isAdvertising.value) {
+
+        // If already actively advertising with exact same parameters, nothing to do
+        if (_isAdvertising.value && currentAdvertisedName == serviceName && currentAdvertisedPort == port && registrationListener != null) {
+            Log.i(TAG, "Already advertising $serviceName on port $port")
+            return
+        }
+
+        if (_isAdvertising.value || registrationListener != null) {
             stopAdvertising()
         }
 
+        currentAdvertisedName = serviceName
+        currentAdvertisedPort = port
         acquireMulticastLock()
 
         val serviceInfo = NsdServiceInfo().apply {
@@ -93,7 +110,7 @@ class NsdDiscoveryManager(private val context: Context) {
             this.port = port
         }
 
-        registrationListener = object : NsdManager.RegistrationListener {
+        val listener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(registeredInfo: NsdServiceInfo) {
                 Log.i(TAG, "Service registered: ${registeredInfo.serviceName} on port ${registeredInfo.port}")
                 _isAdvertising.value = true
@@ -102,6 +119,15 @@ class NsdDiscoveryManager(private val context: Context) {
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e(TAG, "Registration failed: errorCode $errorCode")
                 _isAdvertising.value = false
+                if (errorCode == NsdManager.FAILURE_ALREADY_ACTIVE) {
+                    Log.w(TAG, "NSD Registration FAILURE_ALREADY_ACTIVE. Retrying registration in 1000ms...")
+                    scope.launch {
+                        delay(1000)
+                        if (currentAdvertisedName.isNotBlank()) {
+                            startAdvertising(currentAdvertisedName, currentAdvertisedPort)
+                        }
+                    }
+                }
             }
 
             override fun onServiceUnregistered(arg0: NsdServiceInfo) {
@@ -111,23 +137,30 @@ class NsdDiscoveryManager(private val context: Context) {
 
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e(TAG, "Unregistration failed: errorCode $errorCode")
+                _isAdvertising.value = false
             }
         }
+        registrationListener = listener
 
         try {
-            nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+            nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener)
         } catch (e: Exception) {
             Log.e(TAG, "Exception starting NSD advertising", e)
+            _isAdvertising.value = false
         }
     }
 
     fun stopAdvertising() {
-        val listener = registrationListener ?: return
+        val listener = registrationListener
         registrationListener = null
-        try {
-            nsdManager?.unregisterService(listener)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error unregistering service", e)
+        currentAdvertisedName = ""
+        currentAdvertisedPort = 0
+        if (listener != null) {
+            try {
+                nsdManager?.unregisterService(listener)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering service", e)
+            }
         }
         _isAdvertising.value = false
         if (!_isDiscovering.value) {
@@ -141,7 +174,11 @@ class NsdDiscoveryManager(private val context: Context) {
             Log.e(TAG, "NsdManager not available")
             return
         }
-        if (_isDiscovering.value) {
+        if (_isDiscovering.value && discoveryListener != null) {
+            Log.i(TAG, "NSD discovery already running")
+            return
+        }
+        if (_isDiscovering.value || discoveryListener != null) {
             stopDiscovery()
         }
 
@@ -153,7 +190,7 @@ class NsdDiscoveryManager(private val context: Context) {
         }
         _discoveredServices.value = emptyList()
 
-        discoveryListener = object : NsdManager.DiscoveryListener {
+        val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {
                 Log.i(TAG, "NSD Discovery started for $regType")
                 _isDiscovering.value = true
@@ -184,19 +221,29 @@ class NsdDiscoveryManager(private val context: Context) {
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
                 Log.e(TAG, "Start discovery failed: $errorCode")
                 _isDiscovering.value = false
+                if (errorCode == NsdManager.FAILURE_ALREADY_ACTIVE) {
+                    Log.w(TAG, "NSD Discovery FAILURE_ALREADY_ACTIVE. Retrying discovery in 1000ms...")
+                    scope.launch {
+                        delay(1000)
+                        startDiscovery()
+                    }
+                }
             }
 
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
                 Log.e(TAG, "Stop discovery failed: $errorCode")
             }
         }
+        discoveryListener = listener
 
         try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
         } catch (e: Exception) {
             Log.e(TAG, "Exception starting NSD discovery", e)
+            _isDiscovering.value = false
         }
     }
+
 
     private fun enqueueServiceResolution(service: NsdServiceInfo) {
         synchronized(resolveQueue) {

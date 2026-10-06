@@ -80,14 +80,18 @@ class ConnectionManager {
     // KDS Server Methods
     // ==========================================
     fun startKdsServer(port: Int = 8080) {
-        if (_isServerRunning.value && server != null) {
-            if (_serverPort.value == port) return
+        val currentServer = server
+        if (_isServerRunning.value && currentServer != null && !currentServer.isServerStopped) {
+            if (_serverPort.value == port) {
+                Log.i(TAG, "KDS WebSocket Server already running on port $port")
+                return
+            }
             stopKdsServer()
         }
 
         try {
             _serverPort.value = port
-            server = KdsWebSocketServer(
+            val newServer = KdsWebSocketServer(
                 port = port,
                 onMessageReceived = { message, socket ->
                     scope.launch {
@@ -96,11 +100,25 @@ class ConnectionManager {
                 },
                 onClientCountChanged = { count ->
                     _connectedClientsCount.value = count
+                },
+                onServerError = { ex ->
+                    Log.e(TAG, "KDS WebSocket Server socket error on port $port: ${ex.message}", ex)
+                    _isServerRunning.value = false
+                    if (ex is java.net.BindException) {
+                        Log.w(TAG, "Port $port still busy (TIME_WAIT). Retrying server bind in 500ms...")
+                        scope.launch {
+                            delay(500)
+                            if (server != null && !_isServerRunning.value) {
+                                startKdsServer(port)
+                            }
+                        }
+                    }
                 }
             ).apply {
                 isReuseAddr = true
                 start()
             }
+            server = newServer
             _isServerRunning.value = true
             Log.i(TAG, "Started KDS WebSocket Server on port $port")
         } catch (e: Exception) {
@@ -110,14 +128,17 @@ class ConnectionManager {
     }
 
     fun stopKdsServer() {
-        try {
-            server?.stopServer()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping KDS WebSocket Server", e)
-        }
+        val oldServer = server
         server = null
         _isServerRunning.value = false
         _connectedClientsCount.value = 0
+        if (oldServer != null) {
+            try {
+                oldServer.stopServer()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping KDS WebSocket Server", e)
+            }
+        }
     }
 
     fun broadcastFromServer(message: String): Boolean {

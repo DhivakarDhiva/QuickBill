@@ -231,4 +231,9 @@ class QuickKitchenViewModel(
             _selectedOrderForDetail.value = null
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopKdsServices()
+    }
 }

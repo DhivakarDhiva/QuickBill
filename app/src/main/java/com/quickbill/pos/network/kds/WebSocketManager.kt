@@ -14,7 +14,8 @@ import java.util.concurrent.ConcurrentHashMap
 class KdsWebSocketServer(
     port: Int,
     private val onMessageReceived: (message: String, fromSocket: WebSocket) -> Unit,
-    private val onClientCountChanged: (count: Int) -> Unit
+    private val onClientCountChanged: (count: Int) -> Unit,
+    private val onServerError: ((Exception) -> Unit)? = null
 ) : WebSocketServer(InetSocketAddress("0.0.0.0", port)) {
 
     companion object {
@@ -22,8 +23,12 @@ class KdsWebSocketServer(
     }
 
     private val connectedClients = Collections.newSetFromMap(ConcurrentHashMap<WebSocket, Boolean>())
+    @Volatile
+    var isServerStopped: Boolean = false
+        private set
 
     override fun onStart() {
+        isServerStopped = false
         Log.i(TAG, "KDS WebSocket Server started on port $port")
     }
 
@@ -52,6 +57,9 @@ class KdsWebSocketServer(
 
     override fun onError(conn: WebSocket?, ex: Exception?) {
         Log.e(TAG, "Server error on connection ${conn?.remoteSocketAddress}", ex)
+        if (conn == null && ex != null) {
+            onServerError?.invoke(ex)
+        }
     }
 
     fun broadcastToAll(message: String) {
@@ -59,6 +67,7 @@ class KdsWebSocketServer(
     }
 
     fun stopServer() {
+        isServerStopped = true
         try {
             connectedClients.forEach { conn ->
                 try {
