@@ -74,9 +74,13 @@ class ConnectionManager {
     private val _lastErrorMessage = MutableStateFlow("")
     val lastErrorMessage: StateFlow<String> = _lastErrorMessage.asStateFlow()
 
-    // Stream of incoming messages received on POS client
-    private val _clientIncomingMessages = MutableSharedFlow<String>(extraBufferCapacity = 64)
-    val clientIncomingMessages: SharedFlow<String> = _clientIncomingMessages.asSharedFlow()
+    // Stream of incoming messages received on POS client: Pair(message, originConnectionId)
+    private val _clientIncomingMessages = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 64)
+    val clientIncomingMessages: SharedFlow<Pair<String, String>> = _clientIncomingMessages.asSharedFlow()
+
+    // Event emitted whenever a KDS screen connects successfully (passes screen connectionId e.g. "host:port")
+    private val _screenConnectedEvent = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val screenConnectedEvent: SharedFlow<String> = _screenConnectedEvent.asSharedFlow()
 
     // --- KDS Server State ---
     private var server: KdsWebSocketServer? = null
@@ -392,6 +396,11 @@ class ConnectionManager {
                     Log.w(TAG, "Failed to send POS_HELLO to ${entry.id}", e)
                 }
 
+                // Notify listeners that this screen is newly connected so initial sync can take place
+                scope.launch {
+                    _screenConnectedEvent.emit(entry.id)
+                }
+
                 startHeartbeat()
             },
             onDisconnected = { details ->
@@ -432,7 +441,7 @@ class ConnectionManager {
             },
             onMessageReceived = { msg ->
                 scope.launch {
-                    _clientIncomingMessages.emit(msg)
+                    _clientIncomingMessages.emit(Pair(msg, entry.id))
                 }
             },
             onErrorOccurred = { ex ->
@@ -549,12 +558,14 @@ class ConnectionManager {
     }
 
     /**
-     * Broadcasts a message from POS to all connected KDS screens.
+     * Broadcasts a message from POS to all connected KDS screens,
+     * optionally excluding a specific screen (e.g. the origin of the event).
      * Returns true if sent to at least one KDS screen.
      */
-    fun sendFromClient(message: String): Boolean {
+    fun sendFromClient(message: String, excludeId: String = ""): Boolean {
         var deliveredToAny = false
         for (entry in connections.values) {
+            if (excludeId.isNotBlank() && entry.id == excludeId) continue
             val activeClient = entry.client
             if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
                 try {
@@ -566,5 +577,23 @@ class ConnectionManager {
             }
         }
         return deliveredToAny
+    }
+
+    /**
+     * Sends a message directly to a specific connected KDS screen.
+     */
+    fun sendToClient(id: String, message: String): Boolean {
+        val entry = connections[id] ?: return false
+        val activeClient = entry.client
+        if (activeClient != null && activeClient.isOpen && !activeClient.isDetached) {
+            return try {
+                activeClient.send(message)
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending to client $id", e)
+                false
+            }
+        }
+        return false
     }
 }

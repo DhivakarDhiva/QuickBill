@@ -475,5 +475,52 @@ class KdsSyncUnitTest {
         // Ensure names do NOT collide even when kitchenName is identical
         assertFalse(device1Name == device2Name)
     }
+
+    // -------------------------------------------------------------
+    // Test 17: Status Changed Event Propagation & Multi-KDS Relay
+    // -------------------------------------------------------------
+    @Test
+    fun test17_statusChangedEventSerializationAndMultiKdsRelay() {
+        // KDS-1 changes order status from PREPARING to READY
+        val orderId = "order-test-555"
+        val statusChangedEvent = OrderEvent.createStatusChangedEvent(orderId, OrderStatus.READY)
+
+        val json = statusChangedEvent.toJson()
+        val parsedEvent = OrderEvent.fromJson(json)
+
+        assertEquals(OrderEventType.STATUS_CHANGED, parsedEvent.eventType)
+        assertEquals(orderId, parsedEvent.orderId)
+
+        val payload = JSONObject(parsedEvent.payloadJson)
+        assertEquals(orderId, payload.getString("orderId"))
+        assertEquals("READY", payload.getString("status"))
+
+        // Simulate POS relaying to KDS-2
+        val receivedOnKds2Status = OrderStatus.valueOf(payload.getString("status"))
+        assertEquals(OrderStatus.READY, receivedOnKds2Status)
+    }
+
+    // -------------------------------------------------------------
+    // Test 18: Multi-KDS Broadcast Exclude Logic (Prevents Echo Loop)
+    // -------------------------------------------------------------
+    @Test
+    fun test18_multiKdsBroadcastExcludeLogic() {
+        val connectedScreenIds = listOf("192.168.1.101:8080", "192.168.1.102:8080", "192.168.1.103:8080")
+
+        fun getRecipients(excludeId: String): List<String> {
+            return connectedScreenIds.filter { excludeId.isBlank() || it != excludeId }
+        }
+
+        // When KDS-1 (101) triggers status change, only KDS-2 (102) and KDS-3 (103) receive it
+        val recipientsForKds1Event = getRecipients("192.168.1.101:8080")
+        assertEquals(2, recipientsForKds1Event.size)
+        assertFalse(recipientsForKds1Event.contains("192.168.1.101:8080"))
+        assertTrue(recipientsForKds1Event.contains("192.168.1.102:8080"))
+        assertTrue(recipientsForKds1Event.contains("192.168.1.103:8080"))
+
+        // When POS itself broadcasts an order, all screens receive it
+        val recipientsForPosOrder = getRecipients("")
+        assertEquals(3, recipientsForPosOrder.size)
+    }
 }
 

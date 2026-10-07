@@ -56,8 +56,15 @@ class OrderSyncManager(
 
         // POS Mode: Listen for incoming messages from KDS
         scope.launch {
-            connectionManager.clientIncomingMessages.collectLatest { rawJson ->
-                handleClientMessage(rawJson)
+            connectionManager.clientIncomingMessages.collectLatest { (rawJson, originId) ->
+                handleClientMessage(rawJson, originId)
+            }
+        }
+
+        // POS Mode: When a new KDS screen connects, sync active orders to that screen
+        scope.launch {
+            connectionManager.screenConnectedEvent.collectLatest { screenId ->
+                syncActiveOrdersToScreen(screenId)
             }
         }
 
@@ -117,7 +124,7 @@ class OrderSyncManager(
         }
     }
 
-    private suspend fun handleClientMessage(rawJson: String) {
+    private suspend fun handleClientMessage(rawJson: String, originId: String = "") {
         try {
             val json = JSONObject(rawJson)
             val event = OrderEvent.fromJson(json)
@@ -147,8 +154,11 @@ class OrderSyncManager(
                         OrderStatus.NEW
                     }
 
-                    Log.i(TAG, "POS received STATUS_CHANGED for $orderId: $newStatus")
+                    Log.i(TAG, "POS received STATUS_CHANGED from $originId for order $orderId -> $newStatus")
                     orderDao.updateOrderStatus(orderId, newStatus)
+
+                    // Rebroadcast/relay to all OTHER connected KDS displays so every kitchen screen stays synchronized
+                    connectionManager.sendFromClient(rawJson, excludeId = originId)
                 }
 
                 else -> {
@@ -157,6 +167,21 @@ class OrderSyncManager(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message on POS client", e)
+        }
+    }
+
+    suspend fun syncActiveOrdersToScreen(screenId: String) {
+        try {
+            val activeOrders = orderDao.getAllActiveKitchenOrders()
+            if (activeOrders.isNotEmpty()) {
+                Log.i(TAG, "Syncing ${activeOrders.size} active kitchen orders to screen $screenId...")
+                activeOrders.forEach { order ->
+                    val event = OrderEvent.createOrderEvent(order)
+                    connectionManager.sendToClient(screenId, event.toJson().toString())
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync active orders to screen $screenId", e)
         }
     }
 
@@ -225,6 +250,20 @@ class OrderSyncManager(
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to send ACK for cancellation", e)
                     }
+                }
+
+                OrderEventType.STATUS_CHANGED -> {
+                    val payload = JSONObject(event.payloadJson)
+                    val orderId = payload.getString("orderId")
+                    val statusStr = payload.getString("status")
+                    val newStatus = try {
+                        OrderStatus.valueOf(statusStr)
+                    } catch (_: Exception) {
+                        OrderStatus.NEW
+                    }
+
+                    Log.i(TAG, "KDS server received STATUS_CHANGED for $orderId -> $newStatus")
+                    orderDao.updateOrderStatus(orderId, newStatus)
                 }
 
                 OrderEventType.PING -> {

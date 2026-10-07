@@ -31,6 +31,41 @@ interface OrderDao {
     @Query("SELECT * FROM kitchen_orders WHERE status != 'COMPLETED' AND status != 'CANCELLED' ORDER BY createdAt ASC")
     fun getActiveOrdersFlow(): Flow<List<OrderEntity>>
 
+    @Query("SELECT * FROM kitchen_orders WHERE status != 'COMPLETED' AND status != 'CANCELLED' ORDER BY createdAt ASC")
+    suspend fun getActiveOrdersList(): List<OrderEntity>
+
+    @Transaction
+    suspend fun getAllActiveKitchenOrders(): List<KitchenOrder> {
+        val activeEntities = getActiveOrdersList()
+        return activeEntities.map { entity ->
+            val items = getItemsForOrder(entity.orderId).map {
+                KitchenOrderItem(
+                    id = it.id,
+                    orderId = it.orderId,
+                    productId = it.productId,
+                    name = it.name,
+                    quantity = it.quantity,
+                    unitPrice = it.unitPrice,
+                    notes = it.notes,
+                    isVeg = it.isVeg
+                )
+            }
+            KitchenOrder(
+                orderId = entity.orderId,
+                orderNumber = entity.orderNumber,
+                customerName = entity.customerName,
+                tableNumber = entity.tableNumber,
+                notes = entity.notes,
+                orderType = entity.orderType,
+                status = entity.status,
+                items = items,
+                createdAt = entity.createdAt,
+                updatedAt = entity.updatedAt,
+                synced = entity.synced
+            )
+        }
+    }
+
     @Query("SELECT * FROM kitchen_orders ORDER BY createdAt DESC")
     fun getAllOrdersFlow(): Flow<List<OrderEntity>>
 
