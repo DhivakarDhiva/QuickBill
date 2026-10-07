@@ -88,11 +88,23 @@ interface OrderDao {
     @Query("DELETE FROM kitchen_orders WHERE orderId = :orderId")
     suspend fun deleteOrder(orderId: String)
 
+    @Query("SELECT * FROM kitchen_orders WHERE orderNumber = :orderNumber LIMIT 1")
+    suspend fun getOrderByOrderNumber(orderNumber: String): OrderEntity?
+
     @Query("DELETE FROM kitchen_order_items WHERE orderId = :orderId")
     suspend fun deleteOrderItems(orderId: String)
 
     @Transaction
     suspend fun saveFullKitchenOrder(order: KitchenOrder) {
+        // Prevent order duplications: Check if an order with the same orderNumber already exists
+        val existingByNumber = getOrderByOrderNumber(order.orderNumber)
+
+        // If an old record existed with different orderId, clean it up so we don't have duplicate orders
+        if (existingByNumber != null && existingByNumber.orderId != order.orderId) {
+            deleteOrderItems(existingByNumber.orderId)
+            deleteOrder(existingByNumber.orderId)
+        }
+
         val entity = OrderEntity(
             orderId = order.orderId,
             orderNumber = order.orderNumber,
@@ -101,7 +113,7 @@ interface OrderDao {
             notes = order.notes,
             orderType = order.orderType,
             status = order.status,
-            createdAt = order.createdAt,
+            createdAt = existingByNumber?.createdAt ?: order.createdAt,
             updatedAt = order.updatedAt,
             synced = order.synced
         )

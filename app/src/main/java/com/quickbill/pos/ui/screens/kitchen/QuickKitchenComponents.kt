@@ -335,7 +335,7 @@ fun QuickKitchenOrderCard(
 ) {
     val elapsedSeconds = ((currentTimeMillis - order.createdAt) / 1000L).coerceAtLeast(0L)
     val elapsedMinutes = elapsedSeconds / 60
-    val isOverdue = elapsedMinutes >= warningThresholdMinutes
+    val isOverdue = elapsedMinutes >= warningThresholdMinutes && order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED
     val timerText = String.format(Locale.US, "%02d:%02d", elapsedMinutes, elapsedSeconds % 60)
 
     val itemCount = if (items.isNotEmpty()) items.sumOf { it.quantity } else 1
@@ -348,9 +348,12 @@ fun QuickKitchenOrderCard(
     Surface(
         onClick = onCardClick,
         shape = RoundedCornerShape(14.dp),
-        color = QuickKitchenTheme.Surface,
-        border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
-        shadowElevation = 0.5.dp,
+        color = if (isOverdue) Color(0xFFFFF1F2) else QuickKitchenTheme.Surface,
+        border = BorderStroke(
+            if (isOverdue) 2.dp else 1.dp,
+            if (isOverdue) Color(0xFFE11D48) else QuickKitchenTheme.BorderSubtle
+        ),
+        shadowElevation = if (isOverdue) 4.dp else 0.5.dp,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -359,6 +362,35 @@ fun QuickKitchenOrderCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Overdue Alert Banner highlighting delayed order
+            if (isOverdue) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFE4E6),
+                    border = BorderStroke(1.dp, Color(0xFFFDA4AF)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFE11D48),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "TIME EXCEEDED (${elapsedMinutes}m / ${warningThresholdMinutes}m target)",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFBE123C)
+                            )
+                        )
+                    }
+                }
+            }
             // Header: #10042 on left, Timer pill on right
             Row(
                 modifier = Modifier.fillMaxWidth(),

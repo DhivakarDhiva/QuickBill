@@ -368,7 +368,7 @@ class BillingViewModel(
                 )
 
                 // Dispatch order to Kitchen Display System (KDS) via outbox & WebSocket
-                val newOrderId = UUID.randomUUID().toString()
+                val newOrderId = "order-${billWithDetails.bill.billNumber.replace(" ", "_")}"
                 val kitchenOrder = KitchenOrder(
                     orderId = newOrderId,
                     orderNumber = billWithDetails.bill.billNumber,

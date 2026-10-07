@@ -118,7 +118,7 @@ class QuickKitchenViewModel(
                 updatedAt = entity.updatedAt,
                 synced = entity.synced
             )
-        }
+        }.distinctBy { it.orderNumber }
 
         val newCount = allKitchenOrders.count { it.status == OrderStatus.NEW }
         val preparingCount = allKitchenOrders.count { it.status == OrderStatus.PREPARING }

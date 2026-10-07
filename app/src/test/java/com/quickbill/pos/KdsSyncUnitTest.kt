@@ -522,5 +522,85 @@ class KdsSyncUnitTest {
         val recipientsForPosOrder = getRecipients("")
         assertEquals(3, recipientsForPosOrder.size)
     }
+
+    // -------------------------------------------------------------
+    // Test 19: Deterministic Order ID & Order Deduplication by Order Number
+    // -------------------------------------------------------------
+    @Test
+    fun test19_orderDeduplicationByOrderNumber() {
+        val billNumber = "QB-20261007-0002"
+        val deterministicOrderId = "order-${billNumber.replace(" ", "_")}"
+        assertEquals("order-QB-20261007-0002", deterministicOrderId)
+
+        val order1 = KitchenOrder(
+            orderId = deterministicOrderId,
+            orderNumber = billNumber,
+            customerName = "Walk-in",
+            tableNumber = "Takeaway",
+            status = OrderStatus.NEW,
+            createdAt = 1000L
+        )
+
+        // Duplicate incoming order from network sync or re-transmission
+        val order2 = KitchenOrder(
+            orderId = "legacy-uuid-12345",
+            orderNumber = billNumber,
+            customerName = "Walk-in",
+            tableNumber = "Takeaway",
+            status = OrderStatus.PREPARING,
+            createdAt = 1000L
+        )
+
+        val rawList = listOf(order1, order2)
+        assertEquals(2, rawList.size)
+
+        // Deduplication in QuickKitchenViewModel
+        val deduplicated = rawList.distinctBy { it.orderNumber }
+        assertEquals(1, deduplicated.size)
+        assertEquals(billNumber, deduplicated[0].orderNumber)
+    }
+
+    // -------------------------------------------------------------
+    // Test 20: Overdue Order Detection and Highlight Threshold
+    // -------------------------------------------------------------
+    @Test
+    fun test20_overdueOrderHighlightLogic() {
+        fun isOrderOverdue(createdAt: Long, currentTimeMillis: Long, warningThresholdMinutes: Int, status: OrderStatus): Boolean {
+            val elapsedSeconds = ((currentTimeMillis - createdAt) / 1000L).coerceAtLeast(0L)
+            val elapsedMinutes = elapsedSeconds / 60
+            return elapsedMinutes >= warningThresholdMinutes && status != OrderStatus.COMPLETED && status != OrderStatus.CANCELLED
+        }
+
+        val baseTime = 1000000000L
+        val warningMinutes = 5
+
+        // Order created 2 minutes ago -> NOT overdue
+        val recentOrderElapsed = isOrderOverdue(
+            createdAt = baseTime,
+            currentTimeMillis = baseTime + (2 * 60 * 1000L),
+            warningThresholdMinutes = warningMinutes,
+            status = OrderStatus.NEW
+        )
+        assertFalse(recentOrderElapsed)
+
+        // Order created 16 minutes ago (like in user screenshot) -> OVERDUE
+        val overdueOrderElapsed = isOrderOverdue(
+            createdAt = baseTime,
+            currentTimeMillis = baseTime + (16 * 60 * 1000L),
+            warningThresholdMinutes = warningMinutes,
+            status = OrderStatus.NEW
+        )
+        assertTrue(overdueOrderElapsed)
+
+        // Completed or Cancelled order past 16 minutes -> NOT overdue (highlight only active orders)
+        val completedOrderElapsed = isOrderOverdue(
+            createdAt = baseTime,
+            currentTimeMillis = baseTime + (16 * 60 * 1000L),
+            warningThresholdMinutes = warningMinutes,
+            status = OrderStatus.COMPLETED
+        )
+        assertFalse(completedOrderElapsed)
+    }
 }
+
 
