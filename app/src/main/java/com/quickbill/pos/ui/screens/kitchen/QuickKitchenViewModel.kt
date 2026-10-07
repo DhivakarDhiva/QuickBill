@@ -168,7 +168,11 @@ class QuickKitchenViewModel(
     fun startKdsServices() {
         val settings = settingsRepository.settings.value
         connectionManager.startKdsServer(settings.serverPort)
-        discoveryManager.startAdvertising(serviceName = "QuickKitchen-KDS", port = settings.serverPort)
+        val localIp = discoveryManager.getLocalIpAddress()
+        val ipSuffix = localIp.substringAfterLast(".", "").ifBlank { (100..999).random().toString() }
+        val kitchenTitle = settings.kitchenName.trim().ifBlank { "Kitchen" }
+        val advertisedName = "QuickKitchen-$kitchenTitle-$ipSuffix"
+        discoveryManager.startAdvertising(serviceName = advertisedName, port = settings.serverPort)
     }
 
     fun stopKdsServices() {
@@ -206,11 +210,15 @@ class QuickKitchenViewModel(
     fun updateSettings(settings: KdsSettings) {
         val current = settingsRepository.settings.value
         settingsRepository.updateSettings(settings)
-        if (current.serverPort != settings.serverPort) {
+        if (current.serverPort != settings.serverPort || current.kitchenName != settings.kitchenName) {
             connectionManager.stopKdsServer()
             discoveryManager.stopAdvertising()
             connectionManager.startKdsServer(settings.serverPort)
-            discoveryManager.startAdvertising(serviceName = "QuickKitchen-KDS", port = settings.serverPort)
+            val localIp = discoveryManager.getLocalIpAddress()
+            val ipSuffix = localIp.substringAfterLast(".", "").ifBlank { (100..999).random().toString() }
+            val kitchenTitle = settings.kitchenName.trim().ifBlank { "Kitchen" }
+            val advertisedName = "QuickKitchen-$kitchenTitle-$ipSuffix"
+            discoveryManager.startAdvertising(serviceName = advertisedName, port = settings.serverPort)
         }
     }
 

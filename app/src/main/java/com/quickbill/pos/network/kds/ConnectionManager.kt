@@ -36,10 +36,12 @@ private data class PosConnectionEntry(
     var name: String = "Kitchen Display",
     var client: PosWebSocketClient? = null,
     var status: ConnectionStatus = ConnectionStatus.CONNECTING,
+    var hasConnectedOnce: Boolean = false,
     var connectedAt: Long = 0L,
     var userDisconnected: Boolean = false,
     var reconnectAttempts: Int = 0,
     var reconnectJob: Job? = null,
+    var connectionWatchdogJob: Job? = null,
     var lastError: String = ""
 )
 
@@ -204,7 +206,8 @@ class ConnectionManager {
         val entries = connections.values.toList()
         val connectedList = entries.filter { it.status == ConnectionStatus.CONNECTED }
 
-        _connectedKdsScreens.value = entries.map { entry ->
+        // STRICT FILTER: Only expose actually CONNECTED screens to UI and outbox sync!
+        _connectedKdsScreens.value = connectedList.map { entry ->
             ConnectedKdsScreen(
                 id = entry.id,
                 name = entry.name,
@@ -293,6 +296,8 @@ class ConnectionManager {
         entry.userDisconnected = true
         entry.reconnectJob?.cancel()
         entry.reconnectJob = null
+        entry.connectionWatchdogJob?.cancel()
+        entry.connectionWatchdogJob = null
         try {
             entry.client?.detachAndClose()
         } catch (e: Exception) {
@@ -333,6 +338,8 @@ class ConnectionManager {
             Log.e(TAG, "Invalid URI: $uriStr", e)
             entry.lastError = "Invalid server address: $uriStr"
             entry.status = ConnectionStatus.DISCONNECTED
+            _lastErrorMessage.value = "Invalid server address: $uriStr"
+            connections.remove(entry.id)
             updateClientStateFlows()
             return
         }
@@ -342,13 +349,34 @@ class ConnectionManager {
 
         Log.i(TAG, "Connecting to KDS (${entry.name}) at $serverUri (attempt ${entry.reconnectAttempts})...")
 
+        // 4.5-second connection watchdog: if initial connection doesn't succeed in time, fail cleanly
+        entry.connectionWatchdogJob?.cancel()
+        entry.connectionWatchdogJob = scope.launch {
+            delay(4500L)
+            if (!entry.hasConnectedOnce && entry.status != ConnectionStatus.CONNECTED && !entry.userDisconnected) {
+                Log.w(TAG, "Connection attempt to ${entry.id} timed out after 4500ms")
+                try {
+                    entry.client?.detachAndClose()
+                } catch (_: Exception) {}
+                entry.client = null
+                entry.reconnectJob?.cancel()
+                connections.remove(entry.id)
+                _lastErrorMessage.value = "Cannot reach ${entry.name} at ${entry.host}:${entry.port}. Device unreachable or IP does not exist."
+                updateClientStateFlows()
+            }
+        }
+
         val newClient = PosWebSocketClient(
             serverUri = serverUri,
             onConnected = {
+                entry.connectionWatchdogJob?.cancel()
+                entry.connectionWatchdogJob = null
+                entry.hasConnectedOnce = true
                 entry.reconnectAttempts = 0
                 entry.status = ConnectionStatus.CONNECTED
                 entry.connectedAt = System.currentTimeMillis()
                 entry.lastError = ""
+                _lastErrorMessage.value = ""
                 updateClientStateFlows()
                 Log.i(TAG, "Successfully connected to KDS screen ${entry.name} at ${entry.id}")
 
@@ -367,25 +395,39 @@ class ConnectionManager {
                 startHeartbeat()
             },
             onDisconnected = { details ->
-                entry.status = ConnectionStatus.DISCONNECTED
+                entry.connectionWatchdogJob?.cancel()
+                entry.connectionWatchdogJob = null
                 val userFriendlyError = when {
-                    details.contains("ETIMEDOUT", ignoreCase = true) ->
-                        "Connection timed out to ${entry.name} (${entry.host})."
-                    details.contains("ECONNREFUSED", ignoreCase = true) ->
+                    details.contains("ETIMEDOUT", ignoreCase = true) || details.contains("timed out", ignoreCase = true) ->
+                        "Connection timed out to ${entry.name} (${entry.host}). IP may not exist."
+                    details.contains("ECONNREFUSED", ignoreCase = true) || details.contains("refused", ignoreCase = true) ->
                         "Connection refused on port ${entry.port}. Verify QuickKitchen KDS is running."
                     details.contains("ECONNABORTED", ignoreCase = true) ->
                         "Connection aborted by network for ${entry.name}."
                     details.contains("Cleartext", ignoreCase = true) ->
                         "Cleartext traffic blocked by network security policy."
+                    details.contains("No route", ignoreCase = true) || details.contains("unreachable", ignoreCase = true) ->
+                        "Host unreachable (${entry.host}). IP does not exist on this network."
                     else -> details
                 }
                 entry.lastError = userFriendlyError
                 _lastErrorMessage.value = userFriendlyError
                 Log.w(TAG, "Disconnected from KDS ${entry.name}: $userFriendlyError")
-                updateClientStateFlows()
 
-                if (!entry.userDisconnected) {
-                    scheduleEntryReconnect(entry)
+                if (!entry.hasConnectedOnce) {
+                    // Initial connection attempt never succeeded - do not enter reconnect loop!
+                    try {
+                        entry.client?.detachAndClose()
+                    } catch (_: Exception) {}
+                    entry.client = null
+                    connections.remove(entry.id)
+                    updateClientStateFlows()
+                } else {
+                    entry.status = ConnectionStatus.DISCONNECTED
+                    updateClientStateFlows()
+                    if (!entry.userDisconnected) {
+                        scheduleEntryReconnect(entry)
+                    }
                 }
             },
             onMessageReceived = { msg ->
@@ -395,6 +437,24 @@ class ConnectionManager {
             },
             onErrorOccurred = { ex ->
                 Log.e(TAG, "Client socket error for ${entry.id}: ${ex.message}")
+                if (!entry.hasConnectedOnce) {
+                    entry.connectionWatchdogJob?.cancel()
+                    entry.connectionWatchdogJob = null
+                    try {
+                        entry.client?.detachAndClose()
+                    } catch (_: Exception) {}
+                    entry.client = null
+                    connections.remove(entry.id)
+                    val msg = ex.message ?: ""
+                    val err = when {
+                        msg.contains("refused", ignoreCase = true) -> "Connection refused on port ${entry.port}. Verify QuickKitchen KDS is running."
+                        msg.contains("timed out", ignoreCase = true) || msg.contains("ETIMEDOUT", ignoreCase = true) -> "Connection timed out to ${entry.host}. IP does not exist."
+                        msg.contains("unreachable", ignoreCase = true) || msg.contains("No route", ignoreCase = true) -> "Host unreachable (${entry.host}). IP does not exist."
+                        else -> "Failed to connect to ${entry.host}:${entry.port}"
+                    }
+                    _lastErrorMessage.value = err
+                    updateClientStateFlows()
+                }
             }
         ).apply {
             setConnectionLostTimeout(15)
@@ -406,8 +466,16 @@ class ConnectionManager {
             newClient.connect()
         } catch (e: Exception) {
             Log.e(TAG, "Client connect exception for ${entry.id}", e)
+            entry.connectionWatchdogJob?.cancel()
+            entry.connectionWatchdogJob = null
             entry.lastError = e.message ?: "Failed to initiate connection"
-            scheduleEntryReconnect(entry)
+            _lastErrorMessage.value = "Failed to connect to ${entry.host}:${entry.port}: ${e.message}"
+            if (!entry.hasConnectedOnce) {
+                connections.remove(entry.id)
+                updateClientStateFlows()
+            } else {
+                scheduleEntryReconnect(entry)
+            }
         }
     }
 
@@ -464,6 +532,8 @@ class ConnectionManager {
             entry.userDisconnected = true
             entry.reconnectJob?.cancel()
             entry.reconnectJob = null
+            entry.connectionWatchdogJob?.cancel()
+            entry.connectionWatchdogJob = null
             try {
                 entry.client?.detachAndClose()
             } catch (e: Exception) {

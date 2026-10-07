@@ -429,5 +429,51 @@ class KdsSyncUnitTest {
         // Host 3: Not connected -> Show Connect button
         assertFalse(shouldShowDisconnectOnly("192.168.1.52", 8080))
     }
+
+    // -------------------------------------------------------------
+    // Test 15: Strict Connected Screens Filtering (Preventing Fake Connected Status on Wrong IP)
+    // -------------------------------------------------------------
+    @Test
+    fun test15_strictConnectedScreensFiltering() {
+        data class MockConnectionEntry(
+            val id: String,
+            val host: String,
+            val port: Int,
+            val status: String // "CONNECTING", "CONNECTED", "DISCONNECTED"
+        )
+
+        val entries = listOf(
+            MockConnectionEntry("192.168.1.50:8080", "192.168.1.50", 8080, "CONNECTED"),
+            MockConnectionEntry("192.168.1.99:8080", "192.168.1.99", 8080, "CONNECTING"), // Non-existent IP
+            MockConnectionEntry("192.168.1.100:8080", "192.168.1.100", 8080, "DISCONNECTED")
+        )
+
+        // Strict filter: Only CONNECTED screens count towards connectedKdsScreens
+        val activeConnectedScreens = entries.filter { it.status == "CONNECTED" }
+
+        assertEquals(1, activeConnectedScreens.size)
+        assertEquals("192.168.1.50:8080", activeConnectedScreens[0].id)
+        assertFalse(activeConnectedScreens.any { it.host == "192.168.1.99" })
+    }
+
+    // -------------------------------------------------------------
+    // Test 16: Unique KDS Service Name Generation Across Multiple KDS Devices
+    // -------------------------------------------------------------
+    @Test
+    fun test16_uniqueKdsServiceNameGeneration() {
+        fun generateServiceName(kitchenName: String, localIp: String): String {
+            val ipSuffix = localIp.substringAfterLast(".", "").ifBlank { "0" }
+            val kitchenTitle = kitchenName.trim().ifBlank { "Kitchen" }
+            return "QuickKitchen-$kitchenTitle-$ipSuffix"
+        }
+
+        val device1Name = generateServiceName("Main Kitchen", "192.168.1.101")
+        val device2Name = generateServiceName("Main Kitchen", "192.168.1.102")
+
+        assertEquals("QuickKitchen-Main Kitchen-101", device1Name)
+        assertEquals("QuickKitchen-Main Kitchen-102", device2Name)
+        // Ensure names do NOT collide even when kitchenName is identical
+        assertFalse(device1Name == device2Name)
+    }
 }
 

@@ -211,7 +211,7 @@ fun KdsConnectionDialog(
                     }
                 }
 
-                if (connectionStatus != ConnectionStatus.CONNECTED && lastErrorMessage.isNotBlank()) {
+                if (lastErrorMessage.isNotBlank()) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = Color(0xFFFEE2E2),

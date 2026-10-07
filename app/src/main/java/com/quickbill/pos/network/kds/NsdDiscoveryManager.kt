@@ -7,8 +7,10 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -168,6 +170,8 @@ class NsdDiscoveryManager(private val context: Context) {
         }
     }
 
+    private var subnetScanJob: Job? = null
+
     // POS Mode: Discover KDS services
     fun startDiscovery() {
         if (nsdManager == null) {
@@ -175,9 +179,11 @@ class NsdDiscoveryManager(private val context: Context) {
             return
         }
         if (_isDiscovering.value && discoveryListener != null) {
-            Log.i(TAG, "NSD discovery already running")
+            Log.i(TAG, "NSD discovery already running, triggering fast subnet re-scan")
+            startSubnetScan()
             return
         }
+
         if (_isDiscovering.value || discoveryListener != null) {
             stopDiscovery()
         }
@@ -188,7 +194,9 @@ class NsdDiscoveryManager(private val context: Context) {
             resolveQueue.clear()
             isResolving = false
         }
-        _discoveredServices.value = emptyList()
+
+        // Start high-speed background Wi-Fi subnet scanner in parallel with NSD
+        startSubnetScan()
 
         val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {
@@ -198,10 +206,12 @@ class NsdDiscoveryManager(private val context: Context) {
 
             override fun onServiceFound(service: NsdServiceInfo) {
                 Log.i(TAG, "Service found: ${service.serviceName}, type: ${service.serviceType}")
-                if (service.serviceType.contains("quickbill", ignoreCase = true) ||
-                    service.serviceName.contains("Kitchen", ignoreCase = true) ||
-                    service.serviceName.contains("KDS", ignoreCase = true)
-                ) {
+                val typeMatch = service.serviceType.contains("quickbill", ignoreCase = true) ||
+                        service.serviceType.contains("_tcp", ignoreCase = true)
+                val nameMatch = service.serviceName.contains("Kitchen", ignoreCase = true) ||
+                        service.serviceName.contains("KDS", ignoreCase = true) ||
+                        service.serviceName.contains("QuickBill", ignoreCase = true)
+                if (typeMatch || nameMatch) {
                     enqueueServiceResolution(service)
                 }
             }
@@ -244,10 +254,8 @@ class NsdDiscoveryManager(private val context: Context) {
         }
     }
 
-
     private fun enqueueServiceResolution(service: NsdServiceInfo) {
         synchronized(resolveQueue) {
-            // Avoid duplicate queue entries
             if (!resolveQueue.any { it.serviceName == service.serviceName }) {
                 resolveQueue.add(service)
             }
@@ -265,12 +273,31 @@ class NsdDiscoveryManager(private val context: Context) {
     }
 
     private fun resolveServiceInternal(service: NsdServiceInfo) {
+        var isCompleted = false
+
+        // 3.5 second watchdog: if Android resolveService hangs or fails silently, advance queue
+        val watchdogJob = scope.launch {
+            delay(3500L)
+            synchronized(resolveQueue) {
+                if (!isCompleted && isResolving) {
+                    Log.w(TAG, "Resolve watchdog timeout for ${service.serviceName}. Advancing queue...")
+                    isCompleted = true
+                    isResolving = false
+                    processNextResolve()
+                }
+            }
+        }
+
         val resolveListener = object : NsdManager.ResolveListener {
             override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
                 synchronized(resolveQueue) {
-                    isResolving = false
-                    processNextResolve()
+                    if (!isCompleted) {
+                        isCompleted = true
+                        watchdogJob.cancel()
+                        isResolving = false
+                        processNextResolve()
+                    }
                 }
             }
 
@@ -291,8 +318,12 @@ class NsdDiscoveryManager(private val context: Context) {
                 }
 
                 synchronized(resolveQueue) {
-                    isResolving = false
-                    processNextResolve()
+                    if (!isCompleted) {
+                        isCompleted = true
+                        watchdogJob.cancel()
+                        isResolving = false
+                        processNextResolve()
+                    }
                 }
             }
         }
@@ -302,19 +333,27 @@ class NsdDiscoveryManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Exception calling resolveService", e)
             synchronized(resolveQueue) {
-                isResolving = false
-                processNextResolve()
+                if (!isCompleted) {
+                    isCompleted = true
+                    watchdogJob.cancel()
+                    isResolving = false
+                    processNextResolve()
+                }
             }
         }
     }
 
     fun stopDiscovery() {
-        val listener = discoveryListener ?: return
+        val listener = discoveryListener
         discoveryListener = null
-        try {
-            nsdManager?.stopServiceDiscovery(listener)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping discovery", e)
+        subnetScanJob?.cancel()
+        subnetScanJob = null
+        if (listener != null) {
+            try {
+                nsdManager?.stopServiceDiscovery(listener)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping discovery", e)
+            }
         }
         synchronized(resolveQueue) {
             resolveQueue.clear()
@@ -323,6 +362,45 @@ class NsdDiscoveryManager(private val context: Context) {
         _isDiscovering.value = false
         if (!_isAdvertising.value) {
             releaseMulticastLock()
+        }
+    }
+
+    // High-speed parallel Wi-Fi subnet port scanner (guarantees discovering KDS even when multicast/mDNS is blocked by router)
+    fun startSubnetScan(port: Int = DEFAULT_PORT) {
+        subnetScanJob?.cancel()
+        subnetScanJob = scope.launch(Dispatchers.IO) {
+            val localIp = getLocalIpAddress()
+            if (localIp == "127.0.0.1" || !localIp.contains(".")) return@launch
+
+            val subnetPrefix = localIp.substringBeforeLast(".")
+            val localSuffix = localIp.substringAfterLast(".").toIntOrNull() ?: -1
+
+            Log.i(TAG, "Starting fast Wi-Fi subnet scan on $subnetPrefix.* for KDS port $port...")
+
+            val allIps = (1..254).filter { it != localSuffix }.map { "$subnetPrefix.$it" }
+            allIps.chunked(32).forEach { chunk ->
+                if (!isActive) return@launch
+                val jobs = chunk.map { targetIp ->
+                    launch {
+                        try {
+                            val socket = java.net.Socket()
+                            socket.connect(java.net.InetSocketAddress(targetIp, port), 250)
+                            socket.close()
+
+                            Log.i(TAG, "Subnet scan discovered active KDS at $targetIp:$port")
+                            val discovered = DiscoveredKdsService(
+                                serviceName = "Kitchen Display (${targetIp.substringAfterLast('.')})",
+                                hostIp = targetIp,
+                                port = port
+                            )
+                            val current = _discoveredServices.value.filter { it.hostIp != targetIp || it.port != port }
+                            _discoveredServices.value = current + discovered
+                        } catch (_: Exception) {}
+                    }
+                }
+                jobs.forEach { it.join() }
+            }
+            Log.i(TAG, "Subnet scan completed. Total discovered: ${_discoveredServices.value.size}")
         }
     }
 
