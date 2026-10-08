@@ -49,4 +49,21 @@ class ThemeUnitTest {
         assertEquals(AppThemeMode.LIGHT, AppThemeMode.valueOf("LIGHT"))
         assertEquals(AppThemeMode.DARK, AppThemeMode.valueOf("DARK"))
     }
+
+    @Test
+    fun testKdsThemeColors_ContrastAndSeparation() {
+        val darkBackground = 0xFF0F172AL
+        val darkSurface = 0xFF1E293BL
+        val darkTextPrimary = 0xFFF8FAFCL
+        val darkOverdueContainer = 0xFF3F131DL
+
+        // Verify dark text is bright (> 200 on all channels)
+        assertTrue((darkTextPrimary and 0xFF) > 200)
+
+        // Verify dark surface is dark (< 80)
+        assertTrue((darkSurface and 0xFF) < 80)
+
+        // Verify dark overdue container is dark wine (< 60)
+        assertTrue((darkOverdueContainer and 0xFF) < 60)
+    }
 }

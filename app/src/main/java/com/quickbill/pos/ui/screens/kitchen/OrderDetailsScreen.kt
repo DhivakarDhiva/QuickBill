@@ -58,7 +58,7 @@ fun OrderDetailsScreen(
     }
 
     Scaffold(
-        containerColor = if (isOverdue) Color(0xFFFFF5F5) else QuickKitchenTheme.Background,
+        containerColor = if (isOverdue) QuickKitchenTheme.OverdueScreenBg else QuickKitchenTheme.Background,
         topBar = {
             Surface(
                 color = QuickKitchenTheme.Surface,
@@ -409,10 +409,10 @@ fun OrderDetailsScreen(
                     item {
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isOverdue) Color(0xFFFFF1F2) else QuickKitchenTheme.Surface,
+                            color = if (isOverdue) QuickKitchenTheme.OverdueContainer else QuickKitchenTheme.Surface,
                             border = BorderStroke(
                                 if (isOverdue) 2.dp else 1.dp,
-                                if (isOverdue) Color(0xFFE11D48) else QuickKitchenTheme.BorderSubtle
+                                if (isOverdue) QuickKitchenTheme.OverdueBorder else QuickKitchenTheme.BorderSubtle
                             ),
                             shadowElevation = if (isOverdue) 3.dp else 0.5.dp,
                             modifier = Modifier.fillMaxWidth()
@@ -424,8 +424,8 @@ fun OrderDetailsScreen(
                                 if (isOverdue) {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFFFFE4E6),
-                                        border = BorderStroke(1.dp, Color(0xFFFDA4AF)),
+                                        color = QuickKitchenTheme.OverdueBannerBg,
+                                        border = BorderStroke(1.dp, QuickKitchenTheme.OverdueBannerBorder),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -436,14 +436,14 @@ fun OrderDetailsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Warning,
                                                 contentDescription = null,
-                                                tint = Color(0xFFE11D48),
+                                                tint = QuickKitchenTheme.OverdueBorder,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Text(
                                                 text = "ORDER DELAYED · Exceeded target prep time (${elapsedMin}m elapsed / ${warningThresholdMinutes}m target)",
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFBE123C)
+                                                    color = QuickKitchenTheme.OverdueBannerText
                                                 )
                                             )
                                         }
@@ -483,7 +483,7 @@ fun OrderDetailsScreen(
                                 // Food thumbnail icon
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFFF1F5F9),
+                                    color = QuickKitchenTheme.SurfaceVariant,
                                     modifier = Modifier.size(52.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -667,7 +667,7 @@ private fun TabHeaderItem(
             style = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 fontSize = 14.sp,
-                color = if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextSecondary
+                color = if (isSelected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.TextSecondary
             )
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -676,7 +676,7 @@ private fun TabHeaderItem(
                 .height(2.5.dp)
                 .width(44.dp)
                 .clip(RoundedCornerShape(1.dp))
-                .background(if (isSelected) QuickKitchenTheme.GreenPrimary else Color.Transparent)
+                .background(if (isSelected) QuickKitchenTheme.GreenAccent else Color.Transparent)
         )
     }
 }
@@ -737,15 +737,15 @@ private fun TimelineNode(
         ) {
             Surface(
                 shape = CircleShape,
-                color = if (isPassed) QuickKitchenTheme.GreenPillBg else Color(0xFFF1F5F9),
-                border = BorderStroke(1.5.dp, if (isPassed) QuickKitchenTheme.GreenPrimary else Color(0xFFCBD5E1)),
+                color = if (isPassed) QuickKitchenTheme.GreenPillBg else QuickKitchenTheme.SurfaceVariant,
+                border = BorderStroke(1.5.dp, if (isPassed) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.BorderSubtle),
                 modifier = Modifier.size(32.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isPassed) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextMuted,
+                        tint = if (isPassed) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.TextMuted,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -756,7 +756,7 @@ private fun TimelineNode(
                     modifier = Modifier
                         .width(2.dp)
                         .height(52.dp)
-                        .background(if (isPassed) QuickKitchenTheme.GreenPrimary.copy(alpha = 0.5f) else Color(0xFFE2E8F0))
+                        .background(if (isPassed) QuickKitchenTheme.GreenAccent.copy(alpha = 0.5f) else QuickKitchenTheme.BorderSubtle)
                 )
             }
         }
@@ -822,7 +822,8 @@ fun KitchenBillReceiptDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
+            color = QuickKitchenTheme.Surface,
+            border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
             tonalElevation = 8.dp,
             shadowElevation = 16.dp,
             modifier = Modifier
@@ -846,14 +847,14 @@ fun KitchenBillReceiptDialog(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFFEF3C7),
+                            color = QuickKitchenTheme.AmberPillBg,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Receipt,
                                     contentDescription = null,
-                                    tint = Color(0xFFD97706),
+                                    tint = QuickKitchenTheme.AmberPillText,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -904,8 +905,8 @@ fun KitchenBillReceiptDialog(
                     item {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = QuickKitchenTheme.Background,
+                            border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -1052,7 +1053,7 @@ fun KitchenBillReceiptDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                .background(QuickKitchenTheme.SurfaceVariant, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -1165,13 +1166,13 @@ fun KitchenBillReceiptDialog(
                                     text = "Note: ${item.notes}",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 11.sp,
-                                        color = Color(0xFFD97706)
+                                        color = QuickKitchenTheme.OrangeAccent
                                     ),
                                     modifier = Modifier.padding(start = 12.dp, top = 2.dp)
                                 )
                             }
                             HorizontalDivider(
-                                color = Color(0xFFF1F5F9),
+                                color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f),
                                 modifier = Modifier.padding(top = 6.dp)
                             )
                         }
@@ -1181,8 +1182,8 @@ fun KitchenBillReceiptDialog(
                     item {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = QuickKitchenTheme.Background,
+                            border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
@@ -1215,7 +1216,7 @@ fun KitchenBillReceiptDialog(
                                 }
 
                                 if (totalAmount > 0.0) {
-                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                                    HorizontalDivider(color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f))
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1234,7 +1235,7 @@ fun KitchenBillReceiptDialog(
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 18.sp,
-                                                color = QuickKitchenTheme.GreenPrimary
+                                                color = QuickKitchenTheme.GreenAccent
                                             )
                                         )
                                     }

@@ -71,8 +71,8 @@ fun WaitingConnectionScreen(
                     // Information card matching Reference Screen 4
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = QuickKitchenTheme.SurfaceVariant,
+                        border = BorderStroke(1.dp, QuickKitchenTheme.BorderSubtle),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -82,14 +82,14 @@ fun WaitingConnectionScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF0284C7).copy(alpha = 0.15f),
+                                color = QuickKitchenTheme.BluePillBg,
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Info,
                                         contentDescription = null,
-                                        tint = Color(0xFF0284C7),
+                                        tint = QuickKitchenTheme.BluePillText,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -114,7 +114,7 @@ fun WaitingConnectionScreen(
                             text = "Skip to Kitchen Display",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.SemiBold,
-                                color = QuickKitchenTheme.GreenPrimary
+                                color = QuickKitchenTheme.GreenAccent
                             )
                         )
                     }
@@ -142,7 +142,7 @@ fun WaitingConnectionScreen(
                     modifier = Modifier
                         .size(210.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFDCFCE7).copy(alpha = 0.35f))
+                        .background(QuickKitchenTheme.GreenPillBg.copy(alpha = 0.45f))
                 )
 
                 // Middle ring
@@ -150,7 +150,7 @@ fun WaitingConnectionScreen(
                     modifier = Modifier
                         .size(150.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFDCFCE7).copy(alpha = 0.65f))
+                        .background(QuickKitchenTheme.GreenPillBg.copy(alpha = 0.75f))
                 )
 
                 // Inner circle
@@ -158,7 +158,7 @@ fun WaitingConnectionScreen(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFBBF7D0))
+                        .background(QuickKitchenTheme.GreenPillBg)
                 )
 
                 // Center Chef Hat Badge
@@ -216,7 +216,7 @@ fun WaitingConnectionScreen(
                 ) {
                     CircularProgressIndicator(
                         strokeWidth = 2.dp,
-                        color = QuickKitchenTheme.GreenPrimary,
+                        color = QuickKitchenTheme.GreenAccent,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(

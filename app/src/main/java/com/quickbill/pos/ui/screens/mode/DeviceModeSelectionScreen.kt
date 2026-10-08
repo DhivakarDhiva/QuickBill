@@ -136,8 +136,8 @@ fun DeviceModeSelectionScreen(
                 title = "POS",
                 subtitle = "Billing, Sales & Management",
                 icon = Icons.Default.PointOfSale,
-                iconBg = Color(0xFFE0F2FE),
-                iconTint = Color(0xFF0284C7),
+                iconBg = QuickKitchenTheme.BluePillBg,
+                iconTint = QuickKitchenTheme.BluePillText,
                 isSelected = selectedMode == DeviceMode.POS,
                 onClick = { selectedMode = DeviceMode.POS }
             )
@@ -148,7 +148,7 @@ fun DeviceModeSelectionScreen(
                 subtitle = "Receive and manage kitchen orders",
                 icon = Icons.Default.Restaurant,
                 iconBg = QuickKitchenTheme.GreenPillBg,
-                iconTint = QuickKitchenTheme.GreenPrimary,
+                iconTint = QuickKitchenTheme.GreenAccent,
                 isSelected = selectedMode == DeviceMode.KDS,
                 onClick = { selectedMode = DeviceMode.KDS }
             )

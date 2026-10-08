@@ -193,7 +193,7 @@ fun KitchenSetupScreen(
                             Icon(
                                 imageVector = Icons.Default.Wifi,
                                 contentDescription = null,
-                                tint = QuickKitchenTheme.GreenPrimary,
+                                tint = QuickKitchenTheme.GreenAccent,
                                 modifier = Modifier.size(24.dp)
                             )
                         }

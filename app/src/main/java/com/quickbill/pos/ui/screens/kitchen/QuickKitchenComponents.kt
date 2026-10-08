@@ -36,8 +36,8 @@ import java.util.Locale
 fun ChefHatBadge(
     modifier: Modifier = Modifier,
     size: Int = 40,
-    backgroundColor: Color = Color(0xFFDCFCE7),
-    iconColor: Color = Color(0xFF0F5132)
+    backgroundColor: Color = QuickKitchenTheme.GreenPillBg,
+    iconColor: Color = QuickKitchenTheme.GreenAccent
 ) {
     Surface(
         shape = RoundedCornerShape((size * 0.3f).dp),
@@ -108,7 +108,10 @@ fun QuickKitchenHeader(
                 onClick = onConnectionClick,
                 shape = RoundedCornerShape(16.dp),
                 color = if (isConnected) QuickKitchenTheme.GreenPillBg else QuickKitchenTheme.RedPillBg,
-                border = BorderStroke(1.dp, if (isConnected) Color(0xFFBBF7D0) else Color(0xFFFECACA))
+                border = BorderStroke(
+                    1.dp,
+                    if (isConnected) QuickKitchenTheme.GreenPillText.copy(alpha = 0.35f) else QuickKitchenTheme.RedPillText.copy(alpha = 0.35f)
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -278,14 +281,14 @@ fun QuickKitchenTimerBadge(
     }
 
     val textColor = when {
-        isOverdue -> QuickKitchenTheme.RedPrimary
-        isWarning -> QuickKitchenTheme.OrangePrimary
+        isOverdue -> QuickKitchenTheme.RedPillText
+        isWarning -> QuickKitchenTheme.OrangePillText
         else -> QuickKitchenTheme.TextSecondary
     }
 
     val borderColor = when {
-        isOverdue -> Color(0xFFFECACA)
-        isWarning -> Color(0xFFFED7AA)
+        isOverdue -> QuickKitchenTheme.RedPillText.copy(alpha = 0.4f)
+        isWarning -> QuickKitchenTheme.OrangePillText.copy(alpha = 0.4f)
         else -> QuickKitchenTheme.BorderSubtle
     }
 
@@ -348,10 +351,10 @@ fun QuickKitchenOrderCard(
     Surface(
         onClick = onCardClick,
         shape = RoundedCornerShape(14.dp),
-        color = if (isOverdue) Color(0xFFFFF1F2) else QuickKitchenTheme.Surface,
+        color = if (isOverdue) QuickKitchenTheme.OverdueContainer else QuickKitchenTheme.Surface,
         border = BorderStroke(
             if (isOverdue) 2.dp else 1.dp,
-            if (isOverdue) Color(0xFFE11D48) else QuickKitchenTheme.BorderSubtle
+            if (isOverdue) QuickKitchenTheme.OverdueBorder else QuickKitchenTheme.BorderSubtle
         ),
         shadowElevation = if (isOverdue) 4.dp else 0.5.dp,
         modifier = modifier.fillMaxWidth()
@@ -366,8 +369,8 @@ fun QuickKitchenOrderCard(
             if (isOverdue) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFE4E6),
-                    border = BorderStroke(1.dp, Color(0xFFFDA4AF)),
+                    color = QuickKitchenTheme.OverdueBannerBg,
+                    border = BorderStroke(1.dp, QuickKitchenTheme.OverdueBannerBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -378,14 +381,14 @@ fun QuickKitchenOrderCard(
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = null,
-                            tint = Color(0xFFE11D48),
+                            tint = QuickKitchenTheme.OverdueBorder,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "TIME EXCEEDED (${elapsedMinutes}m / ${warningThresholdMinutes}m target)",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFBE123C)
+                                color = QuickKitchenTheme.OverdueBannerText
                             )
                         )
                     }
@@ -470,7 +473,7 @@ fun QuickKitchenOrderCard(
                                 text = item.notes,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 11.sp,
-                                    color = QuickKitchenTheme.OrangePrimary
+                                    color = QuickKitchenTheme.OrangeAccent
                                 ),
                                 modifier = Modifier.padding(start = 24.dp)
                             )
@@ -630,7 +633,7 @@ private fun BottomNavItem(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextMuted,
+                tint = if (isSelected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.TextMuted,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -639,7 +642,7 @@ private fun BottomNavItem(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.TextMuted
+                color = if (isSelected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.TextMuted
             )
         )
     }
@@ -772,7 +775,7 @@ fun ConnectedPosDetailsDialog(
                                 text = "$serverIp:$serverPort",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = QuickKitchenTheme.GreenPrimary
+                                    color = QuickKitchenTheme.GreenAccent
                                 )
                             )
                         }
@@ -837,7 +840,7 @@ fun ConnectedPosDetailsDialog(
                                                 Icon(
                                                     imageVector = Icons.Default.PointOfSale,
                                                     contentDescription = null,
-                                                    tint = QuickKitchenTheme.GreenPrimary,
+                                                    tint = QuickKitchenTheme.GreenAccent,
                                                     modifier = Modifier.size(22.dp)
                                                 )
                                             }
@@ -875,7 +878,7 @@ fun ConnectedPosDetailsDialog(
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
                                         color = QuickKitchenTheme.GreenPillBg,
-                                        border = BorderStroke(0.5.dp, Color(0xFFBBF7D0))
+                                        border = BorderStroke(0.5.dp, QuickKitchenTheme.GreenPillText.copy(alpha = 0.35f))
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -893,7 +896,7 @@ fun ConnectedPosDetailsDialog(
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 10.sp,
-                                                    color = QuickKitchenTheme.GreenPrimary
+                                                    color = QuickKitchenTheme.GreenPillText
                                                 )
                                             )
                                         }
@@ -906,7 +909,7 @@ fun ConnectedPosDetailsDialog(
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = QuickKitchenTheme.GreenPillBg.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        border = BorderStroke(1.dp, QuickKitchenTheme.GreenPillText.copy(alpha = 0.35f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -917,7 +920,7 @@ fun ConnectedPosDetailsDialog(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = QuickKitchenTheme.GreenPrimary,
+                                tint = QuickKitchenTheme.GreenAccent,
                                 modifier = Modifier.size(20.dp)
                             )
                             Column {
@@ -925,7 +928,7 @@ fun ConnectedPosDetailsDialog(
                                     text = "1 POS Terminal Connected",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = QuickKitchenTheme.GreenPrimary
+                                        color = QuickKitchenTheme.GreenAccent
                                     )
                                 )
                                 Text(

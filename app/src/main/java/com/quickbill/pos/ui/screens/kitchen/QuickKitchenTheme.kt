@@ -5,17 +5,35 @@ import androidx.compose.ui.graphics.Color
 import com.quickbill.pos.ui.theme.LocalIsDarkTheme
 
 object QuickKitchenTheme {
-    // Primary Brand Colors from Reference (constant across themes)
-    val GreenPrimary = Color(0xFF0F5132)      // Deep emerald green
-    val GreenLight = Color(0xFF198754)        // Vibrant mid green
+    // Primary Button & Brand Colors (balanced for high readability in both modes)
+    val GreenPrimary: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF16A34A) else Color(0xFF0F5132)
 
-    val OrangePrimary = Color(0xFFEA580C)     // Rich orange for "Preparing" tab and buttons
-    val OrangeLight = Color(0xFFF97316)       // Vibrant orange
+    val GreenLight: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF22C55E) else Color(0xFF198754)
 
-    val RedPrimary = Color(0xFFDC2626)        // Red for "Ready" pill / late warning timers
-    val RedLight = Color(0xFFEF4444)
+    val GreenAccent: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF4ADE80) else Color(0xFF0F5132)
 
-    // Dynamic Theme Colors based on Light / Dark mode
+    val OrangePrimary: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFEA580C) else Color(0xFFEA580C)
+
+    val OrangeLight: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFFB923C) else Color(0xFFF97316)
+
+    val OrangeAccent: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFFB923C) else Color(0xFFC2410C)
+
+    val RedPrimary: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFDC2626) else Color(0xFFDC2626)
+
+    val RedLight: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFF87171) else Color(0xFFEF4444)
+
+    val RedAccent: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFF87171) else Color(0xFFDC2626)
+
+    // Dynamic Theme Surfaces & Layouts
     val Background: Color
         @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF0F172A) else Color(0xFFF8F9FA)
 
@@ -37,6 +55,7 @@ object QuickKitchenTheme {
     val TextMuted: Color
         @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF64748B) else Color(0xFF94A3B8)
 
+    // Status Pills
     val GreenPillBg: Color
         @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF064E3B) else Color(0xFFDCFCE7)
 
@@ -54,5 +73,36 @@ object QuickKitchenTheme {
 
     val RedPillText: Color
         @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFFCA5A5) else Color(0xFF991B1B)
-}
 
+    // Blue & Amber pills (for settings & receipts)
+    val BluePillBg: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF0C4A6E) else Color(0xFFE0F2FE)
+
+    val BluePillText: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF38BDF8) else Color(0xFF0284C7)
+
+    val AmberPillBg: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF78350F) else Color(0xFFFEF3C7)
+
+    val AmberPillText: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFFCD34D) else Color(0xFFD97706)
+
+    // Overdue order layout highlights
+    val OverdueContainer: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF3F131D) else Color(0xFFFFF1F2)
+
+    val OverdueBorder: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFF43F5E) else Color(0xFFE11D48)
+
+    val OverdueBannerBg: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF4C0519) else Color(0xFFFFE4E6)
+
+    val OverdueBannerBorder: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF9F1239) else Color(0xFFFDA4AF)
+
+    val OverdueBannerText: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFFECDD3) else Color(0xFFBE123C)
+
+    val OverdueScreenBg: Color
+        @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF1F1015) else Color(0xFFFFF5F5)
+}

@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -151,7 +152,7 @@ fun KitchenSettingsScreen(
                         )
                         HorizontalDivider(color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
                         SettingSwitchRow(
-                            icon = Icons.Default.VolumeUp,
+                            icon = Icons.AutoMirrored.Filled.VolumeUp,
                             title = "Sound Notification",
                             checked = settings.soundAlertEnabled,
                             onCheckedChange = { onUpdateSettings(settings.copy(soundAlertEnabled = it)) }
@@ -325,7 +326,7 @@ fun KitchenSettingsScreen(
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp,
-                                        color = if (isConnected) QuickKitchenTheme.GreenPrimary else QuickKitchenTheme.RedPrimary
+                                        color = if (isConnected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.RedAccent
                                     )
                                 )
                             }
@@ -372,7 +373,7 @@ fun KitchenSettingsScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.PointOfSale,
                                                         contentDescription = null,
-                                                        tint = QuickKitchenTheme.GreenPrimary,
+                                                        tint = QuickKitchenTheme.GreenAccent,
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                 }
@@ -416,7 +417,7 @@ fun KitchenSettingsScreen(
                                                 Text(
                                                     text = "Synced",
                                                     style = MaterialTheme.typography.labelSmall.copy(
-                                                        color = QuickKitchenTheme.GreenPrimary,
+                                                        color = QuickKitchenTheme.GreenPillText,
                                                         fontWeight = FontWeight.SemiBold,
                                                         fontSize = 11.sp
                                                     )
@@ -452,10 +453,10 @@ fun KitchenSettingsScreen(
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, QuickKitchenTheme.RedPrimary),
+                border = BorderStroke(1.dp, QuickKitchenTheme.RedAccent),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
-                    contentColor = QuickKitchenTheme.RedPrimary
+                    contentColor = QuickKitchenTheme.RedAccent
                 )
             ) {
                 Text(
@@ -463,7 +464,7 @@ fun KitchenSettingsScreen(
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = QuickKitchenTheme.RedPrimary
+                        color = QuickKitchenTheme.RedAccent
                     )
                 )
             }
@@ -582,14 +583,14 @@ private fun SettingSwitchRow(
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFE0F2FE),
+                color = QuickKitchenTheme.BluePillBg,
                 modifier = Modifier.size(32.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color(0xFF0284C7),
+                        tint = QuickKitchenTheme.BluePillText,
                         modifier = Modifier.size(18.dp)
                     )
                 }
