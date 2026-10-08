@@ -73,6 +73,9 @@ fun QuickKitchenScreen(
             ipAddress = uiState.serverIp,
             port = uiState.serverPort,
             connectedClientsCount = uiState.connectedClients,
+            p2pState = uiState.p2pConnectionState,
+            onStartP2pGroup = { viewModel.createP2pGroup() },
+            onStopP2pGroup = { viewModel.removeP2pGroup() },
             onConnected = {
                 viewModel.markWaitingScreenShown()
             },
@@ -125,6 +128,9 @@ fun QuickKitchenScreen(
                 settings = uiState.settings,
                 isConnected = uiState.connectedClients > 0,
                 connectedTerminals = uiState.connectedPosTerminals,
+                p2pState = uiState.p2pConnectionState,
+                onStartP2pGroup = { viewModel.createP2pGroup() },
+                onStopP2pGroup = { viewModel.removeP2pGroup() },
                 currentThemeMode = currentThemeMode,
                 onThemeChange = { mode -> themeRepository?.setThemeMode(mode) },
                 onBackClick = { viewModel.selectNavTab(0) },

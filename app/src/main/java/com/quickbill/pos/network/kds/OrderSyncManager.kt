@@ -33,6 +33,7 @@ class OrderSyncManager(
     val outboxManager: OutboxManager,
     val connectionManager: ConnectionManager,
     val discoveryManager: NsdDiscoveryManager,
+    val p2pManager: WifiP2pConnectionManager,
     private val kdsSettingsRepository: KdsSettingsRepository
 ) {
     companion object {
@@ -81,6 +82,24 @@ class OrderSyncManager(
                 if (status == ConnectionStatus.CONNECTED) {
                     Log.i(TAG, "Connection established. Draining outbox...")
                     drainPendingOutbox()
+                }
+            }
+        }
+
+        // P2P Mode: When Wi-Fi Direct connection links to KDS (Group Owner), auto-connect POS WebSocket
+        scope.launch {
+            p2pManager.connectionState.collectLatest { p2pState ->
+                if (p2pState.isConnected && !p2pState.isGroupOwner && !p2pState.groupOwnerAddress.isNullOrBlank()) {
+                    val targetIp = p2pState.groupOwnerAddress
+                    val targetPort = WifiP2pConnectionManager.P2P_DEFAULT_PORT
+                    if (!connectionManager.isKdsConnected(targetIp, targetPort)) {
+                        Log.i(TAG, "Wi-Fi Direct link established with KDS ($targetIp). Auto-connecting POS WebSocket...")
+                        connectionManager.connectToKds(
+                            rawHost = targetIp,
+                            rawPort = targetPort,
+                            name = "Wi-Fi Direct KDS"
+                        )
+                    }
                 }
             }
         }

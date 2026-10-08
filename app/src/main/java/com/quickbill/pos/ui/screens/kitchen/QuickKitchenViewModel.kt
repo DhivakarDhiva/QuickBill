@@ -12,6 +12,8 @@ import com.quickbill.pos.data.repository.KdsSettingsRepository
 import com.quickbill.pos.network.kds.ConnectionManager
 import com.quickbill.pos.network.kds.NsdDiscoveryManager
 import com.quickbill.pos.network.kds.OrderSyncManager
+import com.quickbill.pos.network.kds.P2pConnectionState
+import com.quickbill.pos.network.kds.WifiP2pConnectionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +43,8 @@ data class KitchenUiState(
     val warningThresholdMinutes: Int = 5,
     val settings: KdsSettings = KdsSettings(),
     val isSetupComplete: Boolean = true,
-    val hasShownWaitingScreen: Boolean = false
+    val hasShownWaitingScreen: Boolean = false,
+    val p2pConnectionState: P2pConnectionState = P2pConnectionState()
 )
 
 class QuickKitchenViewModel(
@@ -49,7 +52,8 @@ class QuickKitchenViewModel(
     private val orderSyncManager: OrderSyncManager,
     private val connectionManager: ConnectionManager,
     private val discoveryManager: NsdDiscoveryManager,
-    private val settingsRepository: KdsSettingsRepository
+    private val settingsRepository: KdsSettingsRepository,
+    val p2pManager: WifiP2pConnectionManager
 ) : ViewModel() {
 
     private val _selectedStatus = MutableStateFlow(OrderStatus.NEW)
@@ -72,7 +76,8 @@ class QuickKitchenViewModel(
         connectionManager.isServerRunning,
         _isSetupComplete,
         _hasShownWaitingScreen,
-        connectionManager.connectedPosTerminals
+        connectionManager.connectedPosTerminals,
+        p2pManager.connectionState
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val orderEntities = args[0] as List<com.quickbill.pos.data.local.entity.OrderEntity>
@@ -88,6 +93,7 @@ class QuickKitchenViewModel(
         val waitingShown = args[9] as Boolean
         @Suppress("UNCHECKED_CAST")
         val terminals = args[10] as List<ConnectedPosTerminal>
+        val p2pState = args[11] as P2pConnectionState
 
         val itemsByOrderId = itemEntities.groupBy { it.orderId }
 
@@ -153,7 +159,8 @@ class QuickKitchenViewModel(
             warningThresholdMinutes = settings.warningThresholdMinutes,
             settings = settings,
             isSetupComplete = setupComplete,
-            hasShownWaitingScreen = waitingShown
+            hasShownWaitingScreen = waitingShown,
+            p2pConnectionState = p2pState
         )
     }.stateIn(
         viewModelScope,
@@ -173,11 +180,6 @@ class QuickKitchenViewModel(
         val kitchenTitle = settings.kitchenName.trim().ifBlank { "Kitchen" }
         val advertisedName = "QuickKitchen-$kitchenTitle-$ipSuffix"
         discoveryManager.startAdvertising(serviceName = advertisedName, port = settings.serverPort)
-    }
-
-    fun stopKdsServices() {
-        connectionManager.stopKdsServer()
-        discoveryManager.stopAdvertising()
     }
 
     fun selectStatus(status: OrderStatus) {
@@ -245,6 +247,23 @@ class QuickKitchenViewModel(
             orderSyncManager.updateOrderStatusOnKds(orderId, OrderStatus.CANCELLED)
             _selectedOrderForDetail.value = null
         }
+    }
+
+    fun createP2pGroup(onSuccess: () -> Unit = {}, onFailure: (String) -> Unit = {}) {
+        p2pManager.createAutonomousGroup(
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    fun removeP2pGroup(onComplete: () -> Unit = {}) {
+        p2pManager.removeGroup(onComplete)
+    }
+
+    fun stopKdsServices() {
+        connectionManager.stopKdsServer()
+        discoveryManager.stopAdvertising()
+        p2pManager.removeGroup()
     }
 
     override fun onCleared() {

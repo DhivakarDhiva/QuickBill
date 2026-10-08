@@ -39,6 +39,7 @@ val appModule = module {
     single { NetworkMonitor(androidContext()) }
     single { com.quickbill.pos.data.repository.DeviceModeRepository(androidContext()) }
     single { com.quickbill.pos.data.repository.KdsSettingsRepository(androidContext()) }
+    single { com.quickbill.pos.network.kds.WifiP2pConnectionManager(androidContext()) }
     single { com.quickbill.pos.network.kds.NsdDiscoveryManager(androidContext()) }
     single { com.quickbill.pos.network.kds.ConnectionManager() }
     single { com.quickbill.pos.network.kds.OutboxManager(get()) }
@@ -50,6 +51,7 @@ val appModule = module {
             outboxManager = get(),
             connectionManager = get(),
             discoveryManager = get(),
+            p2pManager = get(),
             kdsSettingsRepository = get()
         )
     }
@@ -92,7 +94,8 @@ val appModule = module {
             orderSyncManager = get(),
             connectionManager = get(),
             discoveryManager = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            p2pManager = get<com.quickbill.pos.network.kds.WifiP2pConnectionManager>()
         )
     }
 }

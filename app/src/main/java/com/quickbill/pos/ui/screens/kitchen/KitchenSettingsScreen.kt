@@ -34,6 +34,9 @@ fun KitchenSettingsScreen(
     settings: KdsSettings,
     isConnected: Boolean,
     connectedTerminals: List<ConnectedPosTerminal> = emptyList(),
+    p2pState: com.quickbill.pos.network.kds.P2pConnectionState = com.quickbill.pos.network.kds.P2pConnectionState(),
+    onStartP2pGroup: () -> Unit = {},
+    onStopP2pGroup: () -> Unit = {},
     currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeChange: (AppThemeMode) -> Unit = {},
     onBackClick: () -> Unit,
@@ -329,6 +332,61 @@ fun KitchenSettingsScreen(
                                         color = if (isConnected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.RedAccent
                                     )
                                 )
+                            }
+                        }
+
+                        // Wi-Fi Direct (P2P) Status & Controls
+                        HorizontalDivider(
+                            color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Wi-Fi Direct (P2P)",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = QuickKitchenTheme.TextPrimary
+                                    )
+                                )
+                                Text(
+                                    text = if (p2pState.isConnected) {
+                                        "P2P Group Active (192.168.49.1:${settings.serverPort})"
+                                    } else {
+                                        "Offline direct mode (no Wi-Fi router needed)"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
+                                        color = if (p2pState.isConnected) QuickKitchenTheme.GreenAccent else QuickKitchenTheme.TextSecondary
+                                    )
+                                )
+                            }
+                            if (p2pState.isConnected) {
+                                OutlinedButton(
+                                    onClick = onStopP2pGroup,
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = QuickKitchenTheme.RedAccent),
+                                    border = BorderStroke(1.dp, QuickKitchenTheme.RedPrimary.copy(alpha = 0.4f)),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text("Stop P2P", fontSize = 11.sp)
+                                }
+                            } else {
+                                Button(
+                                    onClick = onStartP2pGroup,
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text("Start P2P", fontSize = 11.sp)
+                                }
                             }
                         }
 

@@ -601,6 +601,41 @@ class KdsSyncUnitTest {
         )
         assertFalse(completedOrderElapsed)
     }
+
+    // -------------------------------------------------------------
+    // Test 17: Wi-Fi Direct (P2P) Device & Connection Models
+    // -------------------------------------------------------------
+    @Test
+    fun test17_wifiDirectP2pDeviceAndConnectionState() {
+        val peerAvailable = com.quickbill.pos.network.kds.P2pPeerDevice(
+            deviceName = "KDS-Kitchen-1",
+            deviceAddress = "aa:bb:cc:dd:ee:ff",
+            status = android.net.wifi.p2p.WifiP2pDevice.AVAILABLE
+        )
+        assertEquals("Available", peerAvailable.statusLabel)
+        assertFalse(peerAvailable.isGroupOwner)
+
+        val peerConnected = com.quickbill.pos.network.kds.P2pPeerDevice(
+            deviceName = "KDS-Kitchen-2",
+            deviceAddress = "11:22:33:44:55:66",
+            status = android.net.wifi.p2p.WifiP2pDevice.CONNECTED,
+            isGroupOwner = true
+        )
+        assertEquals("Connected", peerConnected.statusLabel)
+        assertTrue(peerConnected.isGroupOwner)
+
+        val connectionState = com.quickbill.pos.network.kds.P2pConnectionState(
+            isConnected = true,
+            isGroupOwner = false,
+            groupOwnerAddress = "192.168.49.1",
+            groupNetworkName = "DIRECT-QuickKitchen-KDS",
+            clientCount = 1
+        )
+        assertTrue(connectionState.isConnected)
+        assertFalse(connectionState.isGroupOwner)
+        assertEquals("192.168.49.1", connectionState.groupOwnerAddress)
+        assertEquals("DIRECT-QuickKitchen-KDS", connectionState.groupNetworkName)
+    }
 }
 
 
