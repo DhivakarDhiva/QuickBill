@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.network.kds
 
 import android.os.Build
@@ -183,6 +200,14 @@ class ConnectionManager {
         }
     }
 
+    /**
+     * Closes and clears all client connections originating from the P2P subnet (192.168.49.x)
+     * when Wi-Fi Direct connection drops or is stopped.
+     */
+    fun pruneP2pClients() {
+        server?.closeClientsOnSubnet("192.168.49.")
+    }
+
     // ==========================================
     // POS Multi-Client Helper Methods
     // ==========================================
@@ -255,6 +280,12 @@ class ConnectionManager {
         return status == ConnectionStatus.CONNECTING || status == ConnectionStatus.RECONNECTING
     }
 
+    fun hasKdsConnection(rawHost: String, rawPort: Int = 8080): Boolean {
+        val (host, port) = parseHostAndPort(rawHost, rawPort)
+        val key = "$host:$port"
+        return connections.containsKey(key)
+    }
+
     // ==========================================
     // POS Multi-KDS Connection Methods
     // ==========================================
@@ -267,9 +298,21 @@ class ConnectionManager {
         val key = "$host:$port"
 
         val existing = connections[key]
-        if (existing != null && existing.status == ConnectionStatus.CONNECTED) {
-            Log.i(TAG, "Already connected to KDS at $key")
+        if (existing != null && (existing.status == ConnectionStatus.CONNECTED || existing.status == ConnectionStatus.CONNECTING)) {
+            Log.i(TAG, "Already connected or connecting to KDS at $key")
             return
+        }
+
+        // Clean up any stale client or jobs before re-initiating
+        existing?.let {
+            try {
+                it.client?.detachAndClose()
+            } catch (_: Exception) {}
+            it.client = null
+            it.reconnectJob?.cancel()
+            it.reconnectJob = null
+            it.connectionWatchdogJob?.cancel()
+            it.connectionWatchdogJob = null
         }
 
         val entry = existing?.apply {

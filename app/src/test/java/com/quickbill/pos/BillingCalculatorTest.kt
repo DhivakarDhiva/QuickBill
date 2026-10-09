@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos
 
 import com.quickbill.pos.data.local.entity.ProductEntity
@@ -5,7 +22,6 @@ import com.quickbill.pos.data.model.CartItem
 import com.quickbill.pos.data.model.DiscountType
 import com.quickbill.pos.data.util.BillingCalculator
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BillingCalculatorTest {

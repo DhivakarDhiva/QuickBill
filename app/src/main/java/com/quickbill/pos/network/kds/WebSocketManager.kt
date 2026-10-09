@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.network.kds
 
 import android.util.Log
@@ -24,6 +41,13 @@ class KdsWebSocketServer(
 
     companion object {
         private const val TAG = "KdsWebSocketServer"
+        private const val CONNECTION_LOST_TIMEOUT_SECONDS = 4
+    }
+
+    init {
+        // Aggressive heartbeat: detect severed P2P/Wi-Fi connection within 4 seconds
+        connectionLostTimeout = CONNECTION_LOST_TIMEOUT_SECONDS
+        isTcpNoDelay = true
     }
 
     private val connectedClients = Collections.newSetFromMap(ConcurrentHashMap<WebSocket, Boolean>())
@@ -40,10 +64,24 @@ class KdsWebSocketServer(
 
     override fun onOpen(conn: WebSocket?, handshake: ClientHandshake?) {
         if (conn != null) {
-            connectedClients.add(conn)
             val remoteAddr = conn.remoteSocketAddress
             val ip = remoteAddr?.address?.hostAddress ?: "Unknown"
             val clientPort = remoteAddr?.port ?: 0
+
+            // Prune any existing stale socket with the exact same remote IP address
+            val staleSockets = connectedClients.filter { existingConn ->
+                existingConn != conn && existingConn.remoteSocketAddress?.address?.hostAddress == ip
+            }
+            for (stale in staleSockets) {
+                Log.i(TAG, "Replacing previous connection from $ip")
+                connectedClients.remove(stale)
+                clientTerminalMap.remove(stale)
+                try {
+                    stale.close(1000, "Superseded by new connection from same host")
+                } catch (_: Exception) {}
+            }
+
+            connectedClients.add(conn)
             val initialTerminal = ConnectedPosTerminal(
                 id = "$ip:$clientPort",
                 name = "POS Terminal",
@@ -53,9 +91,10 @@ class KdsWebSocketServer(
                 connectedAt = System.currentTimeMillis()
             )
             clientTerminalMap[conn] = initialTerminal
-            Log.i(TAG, "POS Client connected from $ip:$clientPort. Total clients: ${connectedClients.size}")
-            onClientCountChanged(connectedClients.size)
-            onTerminalsChanged?.invoke(clientTerminalMap.values.toList())
+            val uniqueList = getDeduplicatedTerminals()
+            Log.i(TAG, "POS Client connected from $ip:$clientPort. Unique clients: ${uniqueList.size}")
+            onClientCountChanged(uniqueList.size)
+            onTerminalsChanged?.invoke(uniqueList)
         }
     }
 
@@ -63,9 +102,10 @@ class KdsWebSocketServer(
         if (conn != null) {
             connectedClients.remove(conn)
             clientTerminalMap.remove(conn)
-            Log.i(TAG, "POS Client disconnected: $reason (code $code). Remaining: ${connectedClients.size}")
-            onClientCountChanged(connectedClients.size)
-            onTerminalsChanged?.invoke(clientTerminalMap.values.toList())
+            val uniqueList = getDeduplicatedTerminals()
+            Log.i(TAG, "POS Client disconnected: $reason (code $code). Unique remaining: ${uniqueList.size}")
+            onClientCountChanged(uniqueList.size)
+            onTerminalsChanged?.invoke(uniqueList)
         }
     }
 
@@ -83,6 +123,22 @@ class KdsWebSocketServer(
                     val reportedIp = payload.optString("ipAddress", "").ifBlank {
                         conn.remoteSocketAddress?.address?.hostAddress ?: "Unknown"
                     }
+
+                    // Deduplicate by deviceModel: if another socket belongs to the same hardware model, supersede it!
+                    if (devModel.isNotBlank()) {
+                        val staleEntries = clientTerminalMap.entries.filter { (existingConn, term) ->
+                            existingConn != conn && term.deviceModel == devModel
+                        }
+                        for ((staleConn, _) in staleEntries) {
+                            Log.i(TAG, "Superseding duplicate socket for device model $devModel")
+                            connectedClients.remove(staleConn)
+                            clientTerminalMap.remove(staleConn)
+                            try {
+                                staleConn.close(1000, "Superseded by re-registration of $devModel")
+                            } catch (_: Exception) {}
+                        }
+                    }
+
                     val existing = clientTerminalMap[conn]
                     val updated = (existing ?: ConnectedPosTerminal(
                         id = "${conn.remoteSocketAddress?.address?.hostAddress}:${conn.remoteSocketAddress?.port}",
@@ -96,7 +152,9 @@ class KdsWebSocketServer(
                     )
                     clientTerminalMap[conn] = updated
                     Log.i(TAG, "Registered POS Terminal: ${updated.name} (${updated.deviceModel}) at ${updated.ipAddress}")
-                    onTerminalsChanged?.invoke(clientTerminalMap.values.toList())
+                    val uniqueList = getDeduplicatedTerminals()
+                    onClientCountChanged(uniqueList.size)
+                    onTerminalsChanged?.invoke(uniqueList)
                 }
             } catch (_: Exception) {}
 
@@ -132,9 +190,49 @@ class KdsWebSocketServer(
         }
     }
 
-    fun getClientCount(): Int = connectedClients.size
+    /**
+     * Deduplicates connected terminals by deviceModel (or IP address if model is blank)
+     * so that the UI never displays duplicate entries for the same physical device.
+     */
+    fun getDeduplicatedTerminals(): List<ConnectedPosTerminal> {
+        val uniqueMap = mutableMapOf<String, ConnectedPosTerminal>()
+        clientTerminalMap.values.forEach { terminal ->
+            val key = if (terminal.deviceModel.isNotBlank()) {
+                terminal.deviceModel
+            } else {
+                terminal.ipAddress
+            }
+            val existing = uniqueMap[key]
+            if (existing == null || terminal.connectedAt >= existing.connectedAt) {
+                uniqueMap[key] = terminal
+            }
+        }
+        return uniqueMap.values.toList()
+    }
 
-    fun getConnectedTerminals(): List<ConnectedPosTerminal> = clientTerminalMap.values.toList()
+    /**
+     * Closes and clears all client connections originating from the specified subnet (e.g. "192.168.49.").
+     * Called when Wi-Fi Direct is stopped or disconnected.
+     */
+    fun closeClientsOnSubnet(subnetPrefix: String = "192.168.49.") {
+        val toClose = connectedClients.filter { conn ->
+            val ip = conn.remoteSocketAddress?.address?.hostAddress ?: ""
+            ip.startsWith(subnetPrefix)
+        }
+        for (conn in toClose) {
+            Log.i(TAG, "Pruning P2P client socket on subnet $subnetPrefix: ${conn.remoteSocketAddress}")
+            connectedClients.remove(conn)
+            clientTerminalMap.remove(conn)
+            try {
+                conn.close(1000, "P2P connection severed")
+            } catch (_: Exception) {}
+        }
+        if (toClose.isNotEmpty()) {
+            val uniqueList = getDeduplicatedTerminals()
+            onClientCountChanged(uniqueList.size)
+            onTerminalsChanged?.invoke(uniqueList)
+        }
+    }
 }
 
 class PosWebSocketClient(
@@ -147,6 +245,13 @@ class PosWebSocketClient(
 
     companion object {
         private const val TAG = "PosWebSocketClient"
+        private const val CONNECTION_LOST_TIMEOUT_SECONDS = 4
+    }
+
+    init {
+        // Fast connection lost detection: detect severed P2P within 4 seconds
+        connectionLostTimeout = CONNECTION_LOST_TIMEOUT_SECONDS
+        isTcpNoDelay = true
     }
 
     var isDetached: Boolean = false

@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.data.util
 
 import android.content.Context
@@ -7,7 +24,6 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.quickbill.pos.data.model.BillWithDetails
-import com.quickbill.pos.data.model.PaymentMode
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat

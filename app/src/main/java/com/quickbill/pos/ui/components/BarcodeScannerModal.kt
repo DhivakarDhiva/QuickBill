@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.components
 
 import android.Manifest
@@ -18,7 +35,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*

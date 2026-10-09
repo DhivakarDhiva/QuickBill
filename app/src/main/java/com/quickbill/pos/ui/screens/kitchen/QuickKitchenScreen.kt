@@ -1,7 +1,23 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.screens.kitchen
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,7 +28,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,6 +89,8 @@ fun QuickKitchenScreen(
             port = uiState.serverPort,
             connectedClientsCount = uiState.connectedClients,
             p2pState = uiState.p2pConnectionState,
+            isGroupCreating = uiState.isP2pGroupCreating,
+            p2pLastError = uiState.p2pLastError,
             onStartP2pGroup = { viewModel.createP2pGroup() },
             onStopP2pGroup = { viewModel.removeP2pGroup() },
             onConnected = {
@@ -129,6 +146,8 @@ fun QuickKitchenScreen(
                 isConnected = uiState.connectedClients > 0,
                 connectedTerminals = uiState.connectedPosTerminals,
                 p2pState = uiState.p2pConnectionState,
+                isGroupCreating = uiState.isP2pGroupCreating,
+                p2pLastError = uiState.p2pLastError,
                 onStartP2pGroup = { viewModel.createP2pGroup() },
                 onStopP2pGroup = { viewModel.removeP2pGroup() },
                 currentThemeMode = currentThemeMode,

@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.screens.kitchen
 
 import androidx.lifecycle.ViewModel
@@ -6,7 +23,6 @@ import com.quickbill.pos.data.local.dao.OrderDao
 import com.quickbill.pos.data.model.kds.KitchenOrder
 import com.quickbill.pos.data.model.kds.KitchenOrderItem
 import com.quickbill.pos.data.model.kds.OrderStatus
-import com.quickbill.pos.data.model.kds.OrderType
 import com.quickbill.pos.data.repository.KdsSettings
 import com.quickbill.pos.data.repository.KdsSettingsRepository
 import com.quickbill.pos.network.kds.ConnectionManager
@@ -44,7 +60,9 @@ data class KitchenUiState(
     val settings: KdsSettings = KdsSettings(),
     val isSetupComplete: Boolean = true,
     val hasShownWaitingScreen: Boolean = false,
-    val p2pConnectionState: P2pConnectionState = P2pConnectionState()
+    val p2pConnectionState: P2pConnectionState = P2pConnectionState(),
+    val isP2pGroupCreating: Boolean = false,
+    val p2pLastError: String? = null
 )
 
 class QuickKitchenViewModel(
@@ -77,7 +95,9 @@ class QuickKitchenViewModel(
         _isSetupComplete,
         _hasShownWaitingScreen,
         connectionManager.connectedPosTerminals,
-        p2pManager.connectionState
+        p2pManager.connectionState,
+        p2pManager.isGroupCreating,
+        p2pManager.lastError
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val orderEntities = args[0] as List<com.quickbill.pos.data.local.entity.OrderEntity>
@@ -94,6 +114,8 @@ class QuickKitchenViewModel(
         @Suppress("UNCHECKED_CAST")
         val terminals = args[10] as List<ConnectedPosTerminal>
         val p2pState = args[11] as P2pConnectionState
+        val isCreating = args[12] as Boolean
+        val lastErr = args[13] as String?
 
         val itemsByOrderId = itemEntities.groupBy { it.orderId }
 
@@ -160,7 +182,9 @@ class QuickKitchenViewModel(
             settings = settings,
             isSetupComplete = setupComplete,
             hasShownWaitingScreen = waitingShown,
-            p2pConnectionState = p2pState
+            p2pConnectionState = p2pState,
+            isP2pGroupCreating = isCreating,
+            p2pLastError = lastErr
         )
     }.stateIn(
         viewModelScope,
@@ -236,19 +260,6 @@ class QuickKitchenViewModel(
         }
     }
 
-    fun setOrderStatus(orderId: String, newStatus: OrderStatus) {
-        viewModelScope.launch {
-            orderSyncManager.updateOrderStatusOnKds(orderId, newStatus)
-        }
-    }
-
-    fun cancelOrder(orderId: String) {
-        viewModelScope.launch {
-            orderSyncManager.updateOrderStatusOnKds(orderId, OrderStatus.CANCELLED)
-            _selectedOrderForDetail.value = null
-        }
-    }
-
     fun createP2pGroup(onSuccess: () -> Unit = {}, onFailure: (String) -> Unit = {}) {
         p2pManager.createAutonomousGroup(
             onSuccess = onSuccess,
@@ -257,6 +268,7 @@ class QuickKitchenViewModel(
     }
 
     fun removeP2pGroup(onComplete: () -> Unit = {}) {
+        connectionManager.pruneP2pClients()
         p2pManager.removeGroup(onComplete)
     }
 

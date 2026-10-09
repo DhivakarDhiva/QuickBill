@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.data.repository
 
 import androidx.room.withTransaction
@@ -8,7 +25,6 @@ import com.quickbill.pos.data.local.entity.BillPaymentEntity
 import com.quickbill.pos.data.local.entity.HeldCartEntity
 import com.quickbill.pos.data.model.BillStatus
 import com.quickbill.pos.data.model.BillWithDetails
-import com.quickbill.pos.data.model.CartItem
 import com.quickbill.pos.data.model.CartSummary
 import com.quickbill.pos.data.model.PaymentMode
 import com.quickbill.pos.data.model.PaymentSplit

@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.data.util
 
 import com.quickbill.pos.data.model.CartItem
@@ -128,9 +145,5 @@ object BillingCalculator {
         } else {
             0.0
         }
-    }
-
-    fun formatCurrency(amount: Double): String {
-        return "₹" + String.format(java.util.Locale.US, "%.2f", amount)
     }
 }

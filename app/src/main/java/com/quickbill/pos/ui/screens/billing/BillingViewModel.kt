@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.screens.billing
 
 import androidx.lifecycle.ViewModel
@@ -15,13 +32,9 @@ import com.quickbill.pos.data.repository.AuthRepository
 import com.quickbill.pos.data.repository.BillingRepository
 import com.quickbill.pos.data.repository.ProductRepository
 import com.quickbill.pos.data.util.BillingCalculator
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,7 +45,6 @@ import com.quickbill.pos.data.model.kds.KitchenOrderItem
 import com.quickbill.pos.data.model.kds.OrderStatus
 import com.quickbill.pos.data.model.kds.OrderType
 import com.quickbill.pos.network.kds.OrderSyncManager
-import java.util.UUID
 
 data class BillingUiState(
     val searchQuery: String = "",

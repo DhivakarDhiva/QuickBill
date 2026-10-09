@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.network.kds
 
 import android.content.Context
@@ -409,15 +426,15 @@ class NsdDiscoveryManager(private val context: Context) {
         try {
             val interfaces = Collections.list(NetworkInterface.getNetworkInterfaces())
 
-            // Pass 1: Prioritize Wi-Fi or Ethernet interfaces (e.g. wlan0, eth0, en0)
+            // Pass 1: Prioritize true Wi-Fi router or Ethernet interfaces (e.g. wlan0, eth0, en0) excluding P2P subnets
             for (intf in interfaces) {
                 val name = intf.name.lowercase()
-                if (name.startsWith("wlan") || name.startsWith("eth") || name.startsWith("en") || name.contains("wifi")) {
+                if ((name.startsWith("wlan") || name.startsWith("eth") || name.startsWith("en") || name.contains("wifi")) && !name.contains("p2p")) {
                     val addrs = Collections.list(intf.inetAddresses)
                     for (addr in addrs) {
                         if (!addr.isLoopbackAddress && addr is Inet4Address) {
                             val host = addr.hostAddress
-                            if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                            if (!host.isNullOrBlank() && host != "127.0.0.1" && !host.startsWith("192.168.49.")) {
                                 return host
                             }
                         }
@@ -425,17 +442,17 @@ class NsdDiscoveryManager(private val context: Context) {
                 }
             }
 
-            // Pass 2: Any non-loopback, non-cellular IPv4 address (ignore cellular/dummy/p2p)
+            // Pass 2: Any non-loopback, non-cellular, non-P2P IPv4 address
             for (intf in interfaces) {
                 val name = intf.name.lowercase()
-                if (name.startsWith("rmnet") || name.startsWith("dummy") || name.startsWith("tun") || name.startsWith("p2p") || name.startsWith("ccmni")) {
+                if (name.startsWith("rmnet") || name.startsWith("dummy") || name.startsWith("tun") || name.contains("p2p") || name.startsWith("ccmni")) {
                     continue
                 }
                 val addrs = Collections.list(intf.inetAddresses)
                 for (addr in addrs) {
                     if (!addr.isLoopbackAddress && addr is Inet4Address) {
                         val host = addr.hostAddress
-                        if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                        if (!host.isNullOrBlank() && host != "127.0.0.1" && !host.startsWith("192.168.49.")) {
                             return host
                         }
                     }

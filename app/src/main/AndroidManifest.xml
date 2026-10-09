@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  QuickBill + QuickKitchen
+
+  Author: Dhivakar
+  Role: Android Developer
+
+  Copyright (c) 2026 Dhivakar
+
+  This file is part of the QuickBill + QuickKitchen project.
+  The original implementation and modifications in this file were
+  created by Dhivakar for the project/assignment.
+
+  QuickBill-QuickKitchen-Author: Dhivakar
+
+  Do not remove or alter this attribution notice.
+-->
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />

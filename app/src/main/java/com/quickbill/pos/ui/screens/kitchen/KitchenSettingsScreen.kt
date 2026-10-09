@@ -1,5 +1,27 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.screens.kitchen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.quickbill.pos.data.repository.AppThemeMode
 import com.quickbill.pos.data.repository.KdsSettings
 import com.quickbill.pos.ui.components.AppearanceDialog
@@ -35,6 +59,8 @@ fun KitchenSettingsScreen(
     isConnected: Boolean,
     connectedTerminals: List<ConnectedPosTerminal> = emptyList(),
     p2pState: com.quickbill.pos.network.kds.P2pConnectionState = com.quickbill.pos.network.kds.P2pConnectionState(),
+    isGroupCreating: Boolean = false,
+    p2pLastError: String? = null,
     onStartP2pGroup: () -> Unit = {},
     onStopP2pGroup: () -> Unit = {},
     currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
@@ -43,6 +69,39 @@ fun KitchenSettingsScreen(
     onUpdateSettings: (KdsSettings) -> Unit,
     onChangeDeviceMode: () -> Unit
 ) {
+    val context = LocalContext.current
+    val permissionsToRequest = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.NEARBY_WIFI_DEVICES,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it } ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+             ContextCompat.checkSelfPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED)
+        if (granted) {
+            onStartP2pGroup()
+        }
+    }
+
+    fun checkHasPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showWarningTimeDialog by remember { mutableStateOf(false) }
     var showAppearanceDialog by remember { mutableStateOf(false) }
@@ -147,12 +206,12 @@ fun KitchenSettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        SettingSwitchRow(
-                            icon = Icons.Default.CheckCircle,
-                            title = "Auto Accept Orders",
-                            checked = true,
-                            onCheckedChange = { /* auto-accept is active */ }
-                        )
+//                        SettingSwitchRow(
+//                            icon = Icons.Default.CheckCircle,
+//                            title = "Auto Accept Orders",
+//                            checked = true,
+//                            onCheckedChange = { /* auto-accept is active */ }
+//                        )
                         HorizontalDivider(color = QuickKitchenTheme.BorderSubtle.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
                         SettingSwitchRow(
                             icon = Icons.AutoMirrored.Filled.VolumeUp,
@@ -373,19 +432,67 @@ fun KitchenSettingsScreen(
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = QuickKitchenTheme.RedAccent),
                                     border = BorderStroke(1.dp, QuickKitchenTheme.RedPrimary.copy(alpha = 0.4f)),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(28.dp)
+                                    modifier = Modifier.height(30.dp)
                                 ) {
                                     Text("Stop P2P", fontSize = 11.sp)
                                 }
                             } else {
                                 Button(
-                                    onClick = onStartP2pGroup,
+                                    onClick = {
+                                        if (checkHasPermissions()) {
+                                            onStartP2pGroup()
+                                        } else {
+                                            permissionLauncher.launch(permissionsToRequest)
+                                        }
+                                    },
+                                    enabled = !isGroupCreating,
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = QuickKitchenTheme.GreenPrimary),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(28.dp)
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(30.dp)
                                 ) {
-                                    Text("Start P2P", fontSize = 11.sp)
+                                    if (isGroupCreating) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(12.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Color.White
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Starting...", fontSize = 11.sp)
+                                    } else {
+                                        Text("Start P2P", fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!p2pLastError.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = QuickKitchenTheme.RedPillBg,
+                                border = BorderStroke(1.dp, QuickKitchenTheme.RedPrimary.copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = QuickKitchenTheme.RedAccent,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = p2pLastError,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 11.sp,
+                                            color = QuickKitchenTheme.RedAccent
+                                        )
+                                    )
                                 }
                             }
                         }

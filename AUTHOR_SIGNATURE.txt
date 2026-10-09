@@ -1,0 +1,12 @@
+QuickBill + QuickKitchen
+Original Author: Dhivakar
+Year: 2026
+
+Source Integrity:
+SHA-256 manifest: SOURCE_MANIFEST.json
+
+Verification:
+tools/verify_source_integrity.py
+
+Authorship:
+tools/verify_authorship.py

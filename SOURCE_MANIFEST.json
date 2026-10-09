@@ -1,0 +1,577 @@
+[
+  {
+    "path": "AUTHORS.md",
+    "sha256": "0ad160a74855f6e6264a9a80e905f3050b123d73d7d027d0c75059f138b2759d",
+    "size": 2094
+  },
+  {
+    "path": "AUTHOR_SIGNATURE.txt",
+    "sha256": "a61840665e088bbecbc8dfb11b3975106b6475aa4b8ae23df8c6d05f404e548c",
+    "size": 208
+  },
+  {
+    "path": "NOTICE.md",
+    "sha256": "7f5696305b99353996c0fb88f3396b10b2b0b78ed414647b031112977f48da7e",
+    "size": 1678
+  },
+  {
+    "path": "README.md",
+    "sha256": "ecfa24d82b2e4f3efb95c512238aa2a255f3d586c29edd8dd7848d625d6f3a46",
+    "size": 19709
+  },
+  {
+    "path": "app/build.gradle.kts",
+    "sha256": "3b6561fa7a198fcd52099afa62bad4c913acef07310bcd28b0c7eb925d0d51c7",
+    "size": 3742
+  },
+  {
+    "path": "app/proguard-rules.pro",
+    "sha256": "b593485ca025a0e461717647911e1a32f24f265fa19e7cc3692cacb80ba6867f",
+    "size": 1544
+  },
+  {
+    "path": "app/src/main/AndroidManifest.xml",
+    "sha256": "0869e9367ca8ddcafbad30596bca37bd7e79e33b46398362e582e78bb4214cfb",
+    "size": 2808
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/MainActivity.kt",
+    "sha256": "43ec75d293d620d51305d5891b0ba40cc59b0fec21f0f26f21d4371a3fdf44eb",
+    "size": 28930
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/app/QuickBillApp.kt",
+    "sha256": "93629be14bbcd85ad71214bfb29a23a3fe1b9d0f31f4efe138971f04becb2e77",
+    "size": 2815
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/Converters.kt",
+    "sha256": "36558bc5ba4b652019621367131e559e55f78ec1e4fcfdaf0116858b11e6e229",
+    "size": 2896
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/QuickBillDatabase.kt",
+    "sha256": "bf812756e0e2ef55096f60473a640d5f98281325e083b573261c4040368526bc",
+    "size": 3122
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/BillDao.kt",
+    "sha256": "a2e300a641450955f3a39bdecbc6a885904f01fe720312e7f178a67b6812a165",
+    "size": 2445
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/BillItemDao.kt",
+    "sha256": "95732acb0d3058d928bf635281b5354654ec2350b3e343ff8dcbede293f64ecd",
+    "size": 2660
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/BillPaymentDao.kt",
+    "sha256": "e94d95873a702468f360900f821799b4c40193d609671bef086799cc2acffd72",
+    "size": 997
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/HeldCartDao.kt",
+    "sha256": "b2b938d93d6939938d12288ebe03e49a663ed306f1cd1b0d79e06b22a541824c",
+    "size": 1188
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/OrderDao.kt",
+    "sha256": "234c27a4a84f2b0fbfddc08d0f338101b40b11764098cbe793fbcdb15b618e66",
+    "size": 7000
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/PendingEventDao.kt",
+    "sha256": "238fcc41f7f3e7000c936dbf7379cf1b3dbd8351b5f34b331d27e79dfac1f522",
+    "size": 1654
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/ProductDao.kt",
+    "sha256": "db8537423d760a37c7e0a7cba8a0b9770b2e29bbe97fcd1d73656b8171d63d27",
+    "size": 2902
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/ReceivedEventDao.kt",
+    "sha256": "37bb559a82c6bd7cee5fd6d4770176a01bffe5d86f8ca137adc628b5bcb616c2",
+    "size": 1304
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/dao/UserDao.kt",
+    "sha256": "47ae09ea86e61d930358bf2124283e6080df5b3d0175ad0a982da0609c6d689c",
+    "size": 1465
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/BillEntity.kt",
+    "sha256": "15c3e33bb1a12295d6f5f3f137b50e57946d864b4d300f3fdcb98b0b21504f25",
+    "size": 1622
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/BillItemEntity.kt",
+    "sha256": "f8c66c43456441d2bf821c9a6a28645568243f745ded1b61a07151d6fce05744",
+    "size": 1552
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/BillPaymentEntity.kt",
+    "sha256": "00d1f0e4a57e3ca6648b33afcf97091a9fc40537f1e9dfccf1a6cc8e08199096",
+    "size": 1196
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/HeldCartEntity.kt",
+    "sha256": "deb5f3ff4398b5b752489c1cbac00db24b876c4bb5bdd04ef8675bf70a8be8ad",
+    "size": 1010
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/OrderEntity.kt",
+    "sha256": "8b364b27fd3c74fec05805ee048f4b2a2ed3511e0872865f5b64a9c03c92c868",
+    "size": 1247
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/OrderItemEntity.kt",
+    "sha256": "2625d7b00f6cf55d0687365c0cf5f55c02914ad28b2c2bba4e00d81bef00805c",
+    "size": 1209
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/PendingEventEntity.kt",
+    "sha256": "28e1cd32a1ca7ba82664f2f72ff8edc5c52adc2327e96e8b86254cd0ac88342d",
+    "size": 1012
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/ProductEntity.kt",
+    "sha256": "90b4202ac9cf086c7b6e5d181a1f715cd39019cbe4b38ba01aa60360af1724e1",
+    "size": 1249
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/ReceivedEventEntity.kt",
+    "sha256": "02bbf022e78aca33dadcf73374d11419dc53413e57ff50a061668051d7da2658",
+    "size": 859
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/local/entity/UserEntity.kt",
+    "sha256": "90f7d79d5093594b155beff0c1d18e55bf009c7d87b43a33ddf1bf87d005bfc6",
+    "size": 853
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/model/CartModels.kt",
+    "sha256": "6537376ea6a781abf201e71da734332722c016d3ef181e2e2db3cfea7ea71ac0",
+    "size": 3604
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/model/Enums.kt",
+    "sha256": "02cdc24795a7073bfb7cb9dbe5d6d3835df5b3b7a653333bb12f7144be7dd9ed",
+    "size": 684
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/model/kds/KdsModels.kt",
+    "sha256": "f271848f376b976c656ee03f59c831dead3715beef711df36d96f02858a10dfb",
+    "size": 10687
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/AuthRepository.kt",
+    "sha256": "e058cd6af2f40df6b74cfdd00443d94dafae34e5d51afb2f37f270dd414f2c20",
+    "size": 2657
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/BillingRepository.kt",
+    "sha256": "d8ac1cb4356c33a178e5d036b8481f992d2e30fbca516ed7da7084e521eb7a5d",
+    "size": 12916
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/DeviceModeRepository.kt",
+    "sha256": "eaaa94c767d0ce33f19aa0d443f55a669c2ec5aa26ae3cf2c8cb626394cd0ff2",
+    "size": 1511
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/KdsSettingsRepository.kt",
+    "sha256": "844af6873729f47731485148bdf00148698597ad2bab5138743cdf2028995072",
+    "size": 2430
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/ProductRepository.kt",
+    "sha256": "77b4d3c4a30c9335d28c39912f069a3a8e8377e6a531ba9c833e7d5af747e8bd",
+    "size": 1748
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/ReportRepository.kt",
+    "sha256": "7de5a09696c2e4b47cfbbb692257d611967e3d4f8d1c1f4a1dda6e4922e84391",
+    "size": 6830
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/repository/ThemeRepository.kt",
+    "sha256": "f8c392d87062d1c983290958e652daa5004f1cb43b60cf2ffe6fe1ce0329f8fe",
+    "size": 1588
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/seed/SampleDataSeeder.kt",
+    "sha256": "1e50f1a687108ecdae22f4bd7ef12c7f7fad92201fe251a69676868517005ba2",
+    "size": 8779
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/util/BillingCalculator.kt",
+    "sha256": "c50c3352b376e6ad0c211cfdda74e51aaa5ad2d9d2a6d120cf5b8bad873929ab",
+    "size": 4908
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/util/CsvExporter.kt",
+    "sha256": "f1fa48ca36a933410e6af944ba78f367b48c2aa36f92e0f44d432a3a3793332a",
+    "size": 17207
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/util/NetworkMonitor.kt",
+    "sha256": "2526225b6c14d4fe6ac2bfefa46bbf46f7fad8d5916d41fed1ef86790074a4f3",
+    "size": 2363
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/data/util/PdfReceiptGenerator.kt",
+    "sha256": "3e78c4da4def7b9ccd0978fa7567449b2d6617e2e191108ed7f0e4aeb37bc6f5",
+    "size": 9470
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/di/AppModule.kt",
+    "sha256": "ff1978d8daae3d0b612ec23b16a83f46dd6a76163cc0125858222fd9f83f3fc5",
+    "size": 4209
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/ConnectionManager.kt",
+    "sha256": "d8a5015cc36233f1ba27f6970b5553b56ac14ea3802fe3fd2cd0309573ecf0a7",
+    "size": 25745
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/NsdDiscoveryManager.kt",
+    "sha256": "e107cad026dd3a277c473a4e93712f28d87454e2571812075e3429cff98ad2c9",
+    "size": 18876
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/OrderSyncManager.kt",
+    "sha256": "569b403740b35a6f99797e3f84cbe489cf32f621bc820ec46aa063c1cf9a1a2f",
+    "size": 15965
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/OutboxManager.kt",
+    "sha256": "c34559fae4f177aa9053f3bccdb580da42fe30fae592d12eb872c2bfda41c4cd",
+    "size": 3320
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/WebSocketManager.kt",
+    "sha256": "6daf4a7d89dc821f63fc1b1a9e3f2116152d4884e17b018c56b476fbb55d15c2",
+    "size": 11308
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/network/kds/WifiP2pConnectionManager.kt",
+    "sha256": "a6de89f6c877e76c9a818d69ea0158e3fe725b526029be2a0a1b5cf872470b1a",
+    "size": 27119
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/AppearanceDialog.kt",
+    "sha256": "9c269f02ff7c3d4f062d125aaaf44b58e0c34ef9512f0d7052bb6552f0b00baf",
+    "size": 14679
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/BarcodeScannerModal.kt",
+    "sha256": "2e4f81f6780c1de668c9679f8b088ed1c30507ba467be1a084ce84a5995c513a",
+    "size": 12832
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/DiscountDialog.kt",
+    "sha256": "a2d2e5fcec114ea5e9d0eed87d2f539a18f38e4377cf494a2303eeff8f66f231",
+    "size": 12420
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/KdsConnectionDialog.kt",
+    "sha256": "144e3ad388dd21ad643edc599bf50825c75f94e93c35c8d8880179b9cbdccd83",
+    "size": 66968
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/NetworkStatusDialogs.kt",
+    "sha256": "4dacac7f349aec7c8e94cbbe2229bf69410ef43d58b9bcbcfcc2eda75a7644f0",
+    "size": 10337
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/PaymentDialog.kt",
+    "sha256": "488107bd62e13509bacc443500eebc417e64ac08cf8e67aafa51b7441a05d07f",
+    "size": 36053
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/QuickBillComponents.kt",
+    "sha256": "3d94a6cee884ecc5b74e39793935c9c1c79152f804a88dee9b49f7dcbd519df9",
+    "size": 51353
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/QuickBillNavDrawer.kt",
+    "sha256": "b61766e4ecd6df4e215d9f690cb3f1e750d5c77a8207f85a9140a8b8a72a951d",
+    "size": 17450
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/QuickBillTopBar.kt",
+    "sha256": "a665e0370218c79f3cefbf9b343d0a68a108fbd209cdbd4066b1abba88a575f4",
+    "size": 14727
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/components/ReceiptDialog.kt",
+    "sha256": "a4d063ce5a944d5c22b2c3a94a902f1b63d8a1465eb338edede085a65db78846",
+    "size": 29827
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/navigation/QuickBillDestinations.kt",
+    "sha256": "7ceaf505d3ee0998fec0d8241e8adec7e05d4afda6c479d5ece3dabfe1738e3c",
+    "size": 917
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/auth/LoginScreen.kt",
+    "sha256": "9defa4484d451ce99dfcb5c93bddda546e2304daf8754dbca5edfa9ad2819e6d",
+    "size": 20028
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/auth/LoginViewModel.kt",
+    "sha256": "e2145bb764270004d01b3db8350428cc12ddfc89cffe80083aedefc811211e48",
+    "size": 4040
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/billing/BillingScreen.kt",
+    "sha256": "c6a211586d11a2ae13518c20a26650d32bed720007df17f1f3a3fc1aa0461417",
+    "size": 43020
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/billing/BillingViewModel.kt",
+    "sha256": "400a2f21a9090e6c042fd3ef96665e0bdfaba594128c393e4e92c933b304f886",
+    "size": 17346
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/billing/HeldCartsScreen.kt",
+    "sha256": "7f380f2adff2fd65c63cf5a2b68ca672924d786f171fcab0ec1b22a408fefeea",
+    "size": 9052
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/dashboard/DashboardScreen.kt",
+    "sha256": "9a82c909df53cd08353ff839013f7d3dec55e0ee90e707252c65622c62fd01c2",
+    "size": 37469
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/dashboard/DashboardViewModel.kt",
+    "sha256": "166e0d1982a8b7d9f19434e9dbf2e3e30194ab91674566e9b65c8137a02ea04a",
+    "size": 8042
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/history/SalesHistoryScreen.kt",
+    "sha256": "7821a3349fec6774ad503bbce1cbdfad649dbca99f63bf19f5e935a543e03e58",
+    "size": 50980
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/history/SalesHistoryViewModel.kt",
+    "sha256": "8f67e15e5823aaca169e8daec3c67015cd03669fc2a72f81116080066a108ad9",
+    "size": 10475
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/KitchenHistoryScreen.kt",
+    "sha256": "d82b7c9b80867f60e00ea0976f98d1c56899997539cbdf47ce1701b999ef4042",
+    "size": 12899
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/KitchenSettingsScreen.kt",
+    "sha256": "b7fbf7696e3fc06aeb4679588d3c79090553789a367461b431fa8e5d81616894",
+    "size": 38401
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/KitchenSetupScreen.kt",
+    "sha256": "b24ae6f7a18b6798f29baf9e210715d1257705061049a625954f852955f54040",
+    "size": 9837
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/OrderDetailsScreen.kt",
+    "sha256": "3b4ef2c9bd4c55ba226c711e510e6e0b54e95401f7d6bb2b82ed02c2af576e23",
+    "size": 63141
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/QuickKitchenComponents.kt",
+    "sha256": "b9438343ba1986d1abe5bb4556d3207bd52ffaa67d9ae84bad3c60468714316c",
+    "size": 44231
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/QuickKitchenScreen.kt",
+    "sha256": "aa83499d0eca5342ca3401bd155d86b94b1156bc493f7d735b483cc5fe2cb51c",
+    "size": 13014
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/QuickKitchenTheme.kt",
+    "sha256": "ce2ed8d5c7be285d8de261a970f1ede98492b1e7a9e0d21f0d162182726997df",
+    "size": 4943
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/QuickKitchenViewModel.kt",
+    "sha256": "65cb7b6d097b48a0769c35a4b38275deef1cb76fb08766eaae4d21fb98a7f975",
+    "size": 11036
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/kitchen/WaitingConnectionScreen.kt",
+    "sha256": "516e0a5e7e0978d8a77a97b3e057a3d26ee8020a1a876ac163974b304359677d",
+    "size": 18449
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/mode/DeviceModeSelectionScreen.kt",
+    "sha256": "e19e2157a4fcb637cd7d17185b1d9092bee027818656718aada6ee0be76e17cf",
+    "size": 8730
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/products/ProductsScreen.kt",
+    "sha256": "47c9d5445485c8eaff790542501bac67ae3da941483b55b0b5d357c65dc95ae7",
+    "size": 58638
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/products/ProductsViewModel.kt",
+    "sha256": "ddd68feccbf8663e35da506cd42f71ac2662a36316850a616d8a1b358256370c",
+    "size": 10712
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/reports/DailyReportScreen.kt",
+    "sha256": "1e984312c749dcb64b04877dca1c813189e132f230d6464642c32a040c67edcc",
+    "size": 44937
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/screens/reports/ReportsViewModel.kt",
+    "sha256": "d8dcdb31a0700fe99755573116d977d3b83f92a8eb9617de25014a744cecfc04",
+    "size": 6638
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Color.kt",
+    "sha256": "9b5f2b1df7015bfd621b60eed04d5178d9db22b17a70c7c670a1e2808fe46c0e",
+    "size": 5965
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Dimensions.kt",
+    "sha256": "601652a76e0cefc064f04804498bd016fe357b9ec25cd9793d3028d28f538a18",
+    "size": 1367
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Motion.kt",
+    "sha256": "f4743a41aa12d73473224db2d3709632994acfa99bcd04f020d754b36e5320b4",
+    "size": 5117
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Shapes.kt",
+    "sha256": "522781452be858b5c0a3d92b0da7077aac7cb62c221f3cfb77bb8141c95ea298",
+    "size": 1575
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Theme.kt",
+    "sha256": "a9459ec2e42454465ad1e4c00c9b7d812e85c4adf53ba94f200b2e5babfad01e",
+    "size": 4239
+  },
+  {
+    "path": "app/src/main/java/com/quickbill/pos/ui/theme/Type.kt",
+    "sha256": "a1806460b5945ea6f3e55c5047572d9d889b1fc316000c876f85d5023b5504c6",
+    "size": 3167
+  },
+  {
+    "path": "app/src/main/res/drawable/ic_launcher_background.xml",
+    "sha256": "cf55e11beae7956593df1b881ba80cf672f5dde26bd89be2a645c3403e925561",
+    "size": 717
+  },
+  {
+    "path": "app/src/main/res/drawable/ic_launcher_foreground.xml",
+    "sha256": "62c488ba0c5f218b8f87f7e2afde11c095d9ad92d730739264bf51c10d61f5d0",
+    "size": 1102
+  },
+  {
+    "path": "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "sha256": "9585945b07d0412e9d682ce66cc327fc20c8c94006a5d768a85911a8b9123414",
+    "size": 730
+  },
+  {
+    "path": "app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "sha256": "9585945b07d0412e9d682ce66cc327fc20c8c94006a5d768a85911a8b9123414",
+    "size": 730
+  },
+  {
+    "path": "app/src/main/res/values/strings.xml",
+    "sha256": "bef8ab2eaf6533df37371b232f5000d7fc8a86dfc288bf9e3c58746bd11cba13",
+    "size": 462
+  },
+  {
+    "path": "app/src/main/res/values/themes.xml",
+    "sha256": "6507cff5b572fad4adb4df8f35006d56a8276f369743503ce9d794adac5764ff",
+    "size": 709
+  },
+  {
+    "path": "app/src/main/res/xml/file_paths.xml",
+    "sha256": "1595bbd284cfe2515ad59e804e739b994f896ff829a26f5f6af9b4338863735e",
+    "size": 658
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/BillingCalculatorTest.kt",
+    "sha256": "38f1c50419d3b672d997f83de8f153ee016a27439b7819a10e07fe3d5ee60e64",
+    "size": 7110
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/EdgeCaseBillingUnitTest.kt",
+    "sha256": "20a9186bd319dd65098556ba7f78be5b704c238664c1cdbb85d6398d0b550460",
+    "size": 4921
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/InventoryUnitTest.kt",
+    "sha256": "648eddc527b9cc88d353ba3cb967ba95bc4bf77114b10955bd9102de12eb97f9",
+    "size": 5297
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/KdsSyncUnitTest.kt",
+    "sha256": "30baf978d966378ca1e1f5da08e4317a97e2abb15ad1d246b70fa71a87002694",
+    "size": 27623
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/PaymentUnitTest.kt",
+    "sha256": "7958d0d9b9b05ba78ec81ea74fd69144915697ac5501fe8b2c3f1c88f04c69f5",
+    "size": 2892
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/TaxUnitTest.kt",
+    "sha256": "9fdea31242103c5cf71450bb3e1e09688b2cd384d47b6fb5dfc53196ba218ba6",
+    "size": 5723
+  },
+  {
+    "path": "app/src/test/java/com/quickbill/pos/ThemeUnitTest.kt",
+    "sha256": "7313d8945017938adde1b35d4eacaef834f23b0aed29e18f86e6fd4525dca9da",
+    "size": 2841
+  },
+  {
+    "path": "build.gradle.kts",
+    "sha256": "35385c2d81cea10a50db14ed5a4c01995ba94f33678be4ecd0324ee7e0b706f6",
+    "size": 713
+  },
+  {
+    "path": "docs/AUTHORSHIP_AND_INTEGRITY.md",
+    "sha256": "9ebe06dac194e4b5782e231b375299c17778a18a736b97f93e9b5f1c9a040b81",
+    "size": 4516
+  },
+  {
+    "path": "docs/AUTHORSHIP_IMPLEMENTATION_REPORT.md",
+    "sha256": "0ca4c30b0515745d3e7f44270b40bd59c6d43bf49487768a98490b8cceb7a7c8",
+    "size": 4980
+  },
+  {
+    "path": "gradle.properties",
+    "sha256": "3d36d4501969961e0ce203fe03ea8637a948d18d26041848fb21b13a43b29494",
+    "size": 201
+  },
+  {
+    "path": "settings.gradle.kts",
+    "sha256": "b881dd6b116cc0e3f20059e90b82465ef8e0952eb8830f6f0f943b9629cd4712",
+    "size": 936
+  },
+  {
+    "path": "tools/apply_author_headers.py",
+    "sha256": "539b836870f441a380cb0d820a7e5d08f0903d3e05fd2c6bf4b65872fc834b2b",
+    "size": 6002
+  },
+  {
+    "path": "tools/generate_source_manifest.py",
+    "sha256": "3c83b0f6d65b3ea0055d8791466b9221e0514a36ac57dbca212cbd976bbe2128",
+    "size": 3221
+  },
+  {
+    "path": "tools/verify_authorship.py",
+    "sha256": "e170c38c7de4b063d126398ef2c24b4233ffed62f738850f44aa126b9cdf3aca",
+    "size": 3057
+  },
+  {
+    "path": "tools/verify_source_integrity.py",
+    "sha256": "847ec87b9af9cedb2cc6f26bad08280ddb9a353fa256c4398e58bb4b7d6a6aac",
+    "size": 3102
+  }
+]

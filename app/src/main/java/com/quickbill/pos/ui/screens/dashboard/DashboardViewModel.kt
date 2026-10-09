@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.screens.dashboard
 
 import androidx.lifecycle.ViewModel
@@ -7,7 +24,6 @@ import com.quickbill.pos.data.local.entity.ProductEntity
 import com.quickbill.pos.data.local.entity.UserEntity
 import com.quickbill.pos.data.model.BillStatus
 import com.quickbill.pos.data.repository.AuthRepository
-import com.quickbill.pos.data.repository.BillingRepository
 import com.quickbill.pos.data.repository.ProductRepository
 import com.quickbill.pos.data.repository.ReportRepository
 import com.quickbill.pos.data.util.BillingCalculator
@@ -47,7 +63,6 @@ data class HourlySalePoint(
 class DashboardViewModel(
     private val reportRepository: ReportRepository,
     private val productRepository: ProductRepository,
-    private val billingRepository: BillingRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 

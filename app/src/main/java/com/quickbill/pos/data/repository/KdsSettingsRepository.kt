@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.data.repository
 
 import android.content.Context
@@ -44,10 +61,5 @@ class KdsSettingsRepository(context: Context) {
             .putString("manual_kds_ip", settings.manualKdsIp)
             .putInt("manual_kds_port", settings.manualKdsPort)
             .apply()
-    }
-
-    fun setManualKdsAddress(ip: String, port: Int) {
-        val updated = _settings.value.copy(manualKdsIp = ip, manualKdsPort = port)
-        updateSettings(updated)
     }
 }

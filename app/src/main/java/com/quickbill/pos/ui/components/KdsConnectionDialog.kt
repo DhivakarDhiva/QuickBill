@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.components
 
 import android.Manifest
@@ -8,7 +25,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,17 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.quickbill.pos.data.model.kds.ConnectedKdsScreen
-import com.quickbill.pos.network.kds.ConnectionManager
 import com.quickbill.pos.network.kds.ConnectionStatus
-import com.quickbill.pos.network.kds.DiscoveredKdsService
-import com.quickbill.pos.network.kds.NsdDiscoveryManager
 import com.quickbill.pos.network.kds.OrderSyncManager
-import com.quickbill.pos.network.kds.P2pPeerDevice
-import com.quickbill.pos.network.kds.WifiP2pConnectionManager
 
 @Composable
 fun KdsConnectionDialog(
@@ -80,20 +91,37 @@ fun KdsConnectionDialog(
         }
     }
 
-    val lastHost = remember { orderSyncManager.connectionManager.getLastConnectedHost() }
-    val lastPort = remember { orderSyncManager.connectionManager.getLastConnectedPort().toString() }
-    var manualIp by remember { mutableStateOf(lastHost) }
-    var manualPort by remember { mutableStateOf(if (lastPort != "0" && lastPort.isNotBlank()) lastPort else "8080") }
+    val lastWifiHost = remember {
+        val h = orderSyncManager.connectionManager.getLastConnectedHost()
+        if (h.startsWith("192.168.49.")) "" else h
+    }
+    val lastWifiPort = remember {
+        val p = orderSyncManager.connectionManager.getLastConnectedPort().toString()
+        val h = orderSyncManager.connectionManager.getLastConnectedHost()
+        if (h.startsWith("192.168.49.")) "8080"
+        else if (p != "0" && p.isNotBlank()) p else "8080"
+    }
+    var manualIp by remember { mutableStateOf(lastWifiHost) }
+    var manualPort by remember { mutableStateOf(lastWifiPort) }
 
     LaunchedEffect(orderSyncManager.connectionManager.getLastConnectedHost()) {
         val h = orderSyncManager.connectionManager.getLastConnectedHost()
-        if (h.isNotBlank() && manualIp.isBlank()) {
+        if (h.isNotBlank() && !h.startsWith("192.168.49.") && manualIp.isBlank()) {
             manualIp = h
         }
     }
 
     LaunchedEffect(Unit) {
         orderSyncManager.discoveryManager.startDiscovery()
+    }
+
+    LaunchedEffect(selectedModeTab) {
+        if (selectedModeTab == 1) {
+            hasP2pPermissions = p2pManager.hasRequiredPermissions()
+            if (hasP2pPermissions) {
+                p2pManager.startPeerDiscovery()
+            }
+        }
     }
 
     Dialog(onDismissRequest = {
@@ -229,9 +257,9 @@ fun KdsConnectionDialog(
                             }
                         }
 
-                        if (connectionStatus == ConnectionStatus.CONNECTED) {
+                        if (connectionStatus == ConnectionStatus.CONNECTED || p2pConnectionState.isConnected) {
                             TextButton(
-                                onClick = { orderSyncManager.connectionManager.disconnectClient() },
+                                onClick = { orderSyncManager.disconnectAll() },
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
                                 Text("Disconnect All", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -335,10 +363,13 @@ fun KdsConnectionDialog(
                                             }
                                         }
 
-                                        // Requirement 2: Dedicated Disconnect button for connected screen
+                                        // Dedicated Disconnect button for connected screen
                                         OutlinedButton(
                                             onClick = {
                                                 orderSyncManager.connectionManager.disconnectFromKds(screen.host, screen.port)
+                                                if (screen.host.startsWith("192.168.49.")) {
+                                                    p2pManager.removeGroup()
+                                                }
                                             },
                                             shape = RoundedCornerShape(8.dp),
                                             colors = ButtonDefaults.outlinedButtonColors(
@@ -410,6 +441,21 @@ fun KdsConnectionDialog(
                 }
 
                 if (selectedModeTab == 0) {
+                    // Wi-Fi / Hotspot Mode: Filter out any P2P subnet (192.168.49.x) services
+                    val wifiDiscoveredServices = remember(discoveredServices) {
+                        discoveredServices.filter { !it.hostIp.startsWith("192.168.49.") }
+                    }
+                    val availableWifiServices = remember(wifiDiscoveredServices, connectedScreens) {
+                        wifiDiscoveredServices.filter { service ->
+                            connectedScreens.none { it.host == service.hostIp && it.port == service.port }
+                        }
+                    }
+                    val alreadyConnectedWifiCount = remember(wifiDiscoveredServices, connectedScreens) {
+                        wifiDiscoveredServices.count { service ->
+                            connectedScreens.any { it.host == service.hostIp && it.port == service.port }
+                        }
+                    }
+
                     // Discovered KDS Displays (NSD)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -433,10 +479,11 @@ fun KdsConnectionDialog(
                         }
                     }
 
-                    if (discoveredServices.isEmpty()) {
+                    if (availableWifiServices.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            color = if (alreadyConnectedWifiCount > 0) Color(0xFFF0FDF4) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            border = if (alreadyConnectedWifiCount > 0) BorderStroke(1.dp, Color(0xFFBBF7D0)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -444,16 +491,30 @@ fun KdsConnectionDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (isDiscovering) {
-                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                if (alreadyConnectedWifiCount > 0) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF16A34A),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Discovered Wi-Fi screen is connected (see Active Screens above)",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = Color(0xFF166534)
+                                    )
                                 } else {
-                                    Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    if (isDiscovering) {
+                                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    }
+                                    Text(
+                                        text = if (isDiscovering) "Searching for kitchen screens on local Wi-Fi..." else "No kitchen screens found automatically",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Text(
-                                    text = if (isDiscovering) "Searching for kitchen screens on local Wi-Fi..." else "No kitchen screens found automatically",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     } else {
@@ -461,90 +522,79 @@ fun KdsConnectionDialog(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.heightIn(max = 140.dp)
                         ) {
-                            items(discoveredServices) { service ->
-                                val isConnected = orderSyncManager.connectionManager.isKdsConnected(service.hostIp, service.port)
+                            items(availableWifiServices) { service ->
                                 val isConnecting = orderSyncManager.connectionManager.isKdsConnecting(service.hostIp, service.port)
 
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = if (isConnected) Color(0xFFF0FDF4) else MaterialTheme.colorScheme.surfaceVariant,
-                                    border = if (isConnected) BorderStroke(1.dp, Color(0xFFBBF7D0)) else null,
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                modifier = Modifier.size(34.dp)
                                             ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Tv,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = service.serviceName,
                                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                    color = if (isConnected) Color(0xFF166534) else MaterialTheme.colorScheme.onSurface
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
-                                                if (isConnected) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = Color(0xFFDCFCE7),
-                                                        modifier = Modifier.padding(start = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "Connected",
-                                                            fontSize = 10.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF16A34A),
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                                        )
-                                                    }
-                                                }
+                                                Text(
+                                                    text = "${service.hostIp}:${service.port}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1
+                                                )
                                             }
-                                            Text(
-                                                text = "${service.hostIp}:${service.port}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
                                         }
 
-                                        if (isConnected) {
-                                            OutlinedButton(
-                                                onClick = {
-                                                    orderSyncManager.connectionManager.disconnectFromKds(service.hostIp, service.port)
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                colors = ButtonDefaults.outlinedButtonColors(
-                                                    contentColor = Color(0xFFDC2626)
-                                                ),
-                                                border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                                modifier = Modifier.height(30.dp)
-                                            ) {
-                                                Text("Disconnect", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                            }
-                                        } else {
-                                            Button(
-                                                onClick = {
-                                                    orderSyncManager.connectionManager.connectToKds(service.hostIp, service.port, service.serviceName)
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                                                modifier = Modifier.height(30.dp),
-                                                enabled = !isConnecting
-                                            ) {
-                                                if (isConnecting) {
-                                                    CircularProgressIndicator(
-                                                        modifier = Modifier.size(12.dp),
-                                                        strokeWidth = 2.dp,
-                                                        color = MaterialTheme.colorScheme.onPrimary
-                                                    )
-                                                    Spacer(Modifier.width(4.dp))
-                                                    Text("Connecting...", fontSize = 11.sp)
-                                                } else {
-                                                    Text("Connect", fontSize = 11.sp)
-                                                }
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                orderSyncManager.connectionManager.connectToKds(service.hostIp, service.port, service.serviceName)
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp),
+                                            enabled = !isConnecting
+                                        ) {
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(12.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("Connecting...", fontSize = 11.sp)
+                                            } else {
+                                                Text("Connect", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }
@@ -554,14 +604,16 @@ fun KdsConnectionDialog(
                     }
 
                     // Manual IP Fallback / Add Screen via IP
-                    val localIp = remember { orderSyncManager.discoveryManager.getLocalIpAddress() }
+                    val rawLocalIp = remember { orderSyncManager.discoveryManager.getLocalIpAddress() }
+                    val isP2pLocal = rawLocalIp.startsWith("192.168.49.")
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text = "Or Connect Screen via Manual IP",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = "This device's IP: $localIp (port: 8080)",
+                            text = if (isP2pLocal) "Enter the IP address of the KDS device on your Wi-Fi router"
+                                   else "This device's IP: $rawLocalIp (port: 8080)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -655,10 +707,66 @@ fun KdsConnectionDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Wi-Fi Direct connects devices directly without any Wi-Fi router or mobile data. Turn on Wi-Fi on both devices.",
+                                    text = "Wi-Fi Direct connects devices directly without any Wi-Fi router. Ensure Wi-Fi is ON on both devices and KDS has P2P started.",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+                            }
+                        }
+
+                        // Wi-Fi Disabled Warning
+                        if (!p2pManager.isWifiEnabled()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Wi-Fi is turned OFF. Please turn ON Wi-Fi in Quick Settings to use Wi-Fi Direct.",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = Color(0xFF92400E)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Location Services Disabled Warning (Android < 13)
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && !p2pManager.isLocationEnabled()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOff,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Location (GPS) is OFF. Android requires Location ON to scan and find nearby Wi-Fi devices.",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = Color(0xFF92400E)
+                                    )
+                                }
                             }
                         }
 
@@ -700,51 +808,138 @@ fun KdsConnectionDialog(
                             }
                         }
 
+                        // Error notification banner if any
+                        if (!p2pLastError.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEE2E2),
+                                border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Wi-Fi Direct Notice",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF991B1B)
+                                        )
+                                        Text(
+                                            text = p2pLastError ?: "",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = Color(0xFFB91C1C)
+                                        )
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            if (!hasP2pPermissions) {
+                                                p2pPermissionLauncher.launch(permissionsToRequest)
+                                            } else {
+                                                p2pManager.startPeerDiscovery()
+                                            }
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Retry", fontSize = 11.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+
                         // Wi-Fi Direct Connection Status (if active)
                         if (p2pConnectionState.isConnected) {
+                            val groupIp = p2pConnectionState.groupOwnerAddress ?: "192.168.49.1"
+                            val isKdsSocketConnected = orderSyncManager.connectionManager.isKdsConnected(groupIp, 8080)
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFF0FDF4),
                                 border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Row(
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF16A34A))
-                                        )
-                                        Column {
-                                            Text(
-                                                text = "Wi-Fi Direct P2P Active",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                                color = Color(0xFF166534)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF16A34A))
                                             )
-                                            Text(
-                                                text = "Group Owner: ${p2pConnectionState.groupOwnerAddress ?: "192.168.49.1"}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                color = Color(0xFF15803D)
-                                            )
+                                            Column {
+                                                Text(
+                                                    text = "Wi-Fi Direct P2P Active",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = Color(0xFF166534)
+                                                )
+                                                Text(
+                                                    text = "Kitchen Screen IP: $groupIp:8080",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                    color = Color(0xFF15803D)
+                                                )
+                                            }
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                p2pManager.removeGroup()
+                                                orderSyncManager.connectionManager.disconnectFromKds(groupIp, 8080)
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(28.dp)
+                                        ) {
+                                            Text("Disconnect P2P", fontSize = 10.sp)
                                         }
                                     }
-                                    OutlinedButton(
-                                        onClick = { p2pManager.removeGroup() },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(28.dp)
-                                    ) {
-                                        Text("Disconnect P2P", fontSize = 10.sp)
+
+                                    if (!isKdsSocketConnected) {
+                                        val isConnecting = orderSyncManager.connectionManager.isKdsConnecting(groupIp, 8080)
+                                        Button(
+                                            onClick = {
+                                                orderSyncManager.connectionManager.connectToKds(
+                                                    rawHost = groupIp,
+                                                    rawPort = 8080,
+                                                    name = "Wi-Fi Direct Kitchen"
+                                                )
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.fillMaxWidth().height(32.dp),
+                                            enabled = !isConnecting
+                                        ) {
+                                            if (isConnecting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(12.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = Color.White
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("Connecting...", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                            } else {
+                                                Icon(imageVector = Icons.Default.Link, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("Sync Orders with Kitchen Screen", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -764,10 +959,6 @@ fun KdsConnectionDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                if (isP2pDiscovering) {
-                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(4.dp))
-                                }
                                 TextButton(
                                     onClick = {
                                         if (!hasP2pPermissions) {
@@ -778,9 +969,15 @@ fun KdsConnectionDialog(
                                     },
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(if (isP2pDiscovering) "Scanning..." else "Scan Nearby", fontSize = 11.sp)
+                                    if (isP2pDiscovering) {
+                                        CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Scanning...", fontSize = 11.sp)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Scan Nearby", fontSize = 11.sp)
+                                    }
                                 }
                             }
                         }
@@ -832,12 +1029,16 @@ fun KdsConnectionDialog(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    modifier = Modifier.fillMaxWidth()
                                                 ) {
                                                     Text(
                                                         text = peer.deviceName.ifBlank { "Kitchen Display" },
                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (isConnected) Color(0xFF166534) else MaterialTheme.colorScheme.onSurface
+                                                        color = if (isConnected) Color(0xFF166534) else MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
                                                     )
                                                     Surface(
                                                         shape = RoundedCornerShape(6.dp),
@@ -852,6 +1053,8 @@ fun KdsConnectionDialog(
                                                             text = peer.statusLabel,
                                                             fontSize = 10.sp,
                                                             fontWeight = FontWeight.Bold,
+                                                            maxLines = 1,
+                                                            softWrap = false,
                                                             color = when {
                                                                 isConnected -> Color(0xFF16A34A)
                                                                 isInvited -> Color(0xFFCA8A04)
@@ -864,13 +1067,18 @@ fun KdsConnectionDialog(
                                                 Text(
                                                     text = peer.deviceAddress,
                                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1
                                                 )
                                             }
 
                                             if (isConnected) {
                                                 OutlinedButton(
-                                                    onClick = { p2pManager.removeGroup() },
+                                                    onClick = {
+                                                        val groupIp = p2pConnectionState.groupOwnerAddress ?: "192.168.49.1"
+                                                        p2pManager.removeGroup()
+                                                        orderSyncManager.connectionManager.disconnectFromKds(groupIp, 8080)
+                                                    },
                                                     shape = RoundedCornerShape(8.dp),
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
                                                     border = BorderStroke(1.dp, Color(0xFFFCA5A5)),

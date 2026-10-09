@@ -1,14 +1,27 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.network.kds
 
 import android.util.Log
 import com.quickbill.pos.data.local.dao.PendingEventDao
 import com.quickbill.pos.data.local.entity.PendingEventEntity
 import com.quickbill.pos.data.model.kds.OrderEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -19,7 +32,6 @@ class OutboxManager(
         private const val TAG = "OutboxManager"
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val drainMutex = Mutex()
 
     val pendingCountFlow: Flow<Int> = pendingEventDao.getPendingCountFlow()

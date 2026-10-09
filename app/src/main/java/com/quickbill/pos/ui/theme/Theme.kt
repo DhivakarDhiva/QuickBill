@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.ui.theme
 
 import android.app.Activity
@@ -105,14 +122,4 @@ fun QuickBillTheme(
             content = content
         )
     }
-}
-
-object QuickBillThemeTokens {
-    val background: Color @Composable get() = MaterialTheme.colorScheme.background
-    val surface: Color @Composable get() = MaterialTheme.colorScheme.surface
-    val surfaceMuted: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
-    val textPrimary: Color @Composable get() = MaterialTheme.colorScheme.onSurface
-    val textSecondary: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
-    val textMuted: Color @Composable get() = if (LocalIsDarkTheme.current) TextMutedDark else LightTextMuted
-    val outline: Color @Composable get() = MaterialTheme.colorScheme.outline
 }

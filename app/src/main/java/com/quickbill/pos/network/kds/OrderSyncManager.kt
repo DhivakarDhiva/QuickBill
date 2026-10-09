@@ -1,3 +1,20 @@
+/*
+ * QuickBill + QuickKitchen
+ *
+ * Author: Dhivakar
+ * Role: Android Developer
+ *
+ * Copyright (c) 2026 Dhivakar
+ *
+ * This file is part of the QuickBill + QuickKitchen project.
+ * The original implementation and modifications in this file were
+ * created by Dhivakar for the project/assignment.
+ *
+ * QuickBill-QuickKitchen-Author: Dhivakar
+ *
+ * Do not remove or alter this attribution notice.
+ */
+
 package com.quickbill.pos.network.kds
 
 import android.content.Context
@@ -86,13 +103,14 @@ class OrderSyncManager(
             }
         }
 
-        // P2P Mode: When Wi-Fi Direct connection links to KDS (Group Owner), auto-connect POS WebSocket
+        // P2P Mode: When Wi-Fi Direct connection links to KDS (Group Owner), auto-connect POS WebSocket.
+        // When Wi-Fi Direct link drops, tear down POS WebSocket connection to prevent stale sync status.
         scope.launch {
             p2pManager.connectionState.collectLatest { p2pState ->
                 if (p2pState.isConnected && !p2pState.isGroupOwner && !p2pState.groupOwnerAddress.isNullOrBlank()) {
                     val targetIp = p2pState.groupOwnerAddress
                     val targetPort = WifiP2pConnectionManager.P2P_DEFAULT_PORT
-                    if (!connectionManager.isKdsConnected(targetIp, targetPort)) {
+                    if (!connectionManager.isKdsConnected(targetIp, targetPort) && !connectionManager.isKdsConnecting(targetIp, targetPort)) {
                         Log.i(TAG, "Wi-Fi Direct link established with KDS ($targetIp). Auto-connecting POS WebSocket...")
                         connectionManager.connectToKds(
                             rawHost = targetIp,
@@ -100,6 +118,23 @@ class OrderSyncManager(
                             name = "Wi-Fi Direct KDS"
                         )
                     }
+                } else if (!p2pState.isConnected) {
+                    // P2P disconnected: immediately tear down POS client connection to P2P KDS screen
+                    val p2pIp = WifiP2pConnectionManager.DEFAULT_GROUP_OWNER_IP
+                    val p2pPort = WifiP2pConnectionManager.P2P_DEFAULT_PORT
+                    if (connectionManager.isKdsConnected(p2pIp, p2pPort) || connectionManager.hasKdsConnection(p2pIp, p2pPort)) {
+                        Log.i(TAG, "Wi-Fi Direct disconnected. Disconnecting POS WebSocket from $p2pIp:$p2pPort...")
+                        connectionManager.disconnectFromKds(p2pIp, p2pPort)
+                    }
+                }
+            }
+        }
+
+        // KDS Mode: If P2P group drops or client count becomes 0 on KDS, prune orphaned P2P client sockets immediately
+        scope.launch {
+            p2pManager.connectionState.collectLatest { p2pState ->
+                if (!p2pState.isConnected || (p2pState.isGroupOwner && p2pState.clientCount == 0)) {
+                    connectionManager.pruneP2pClients()
                 }
             }
         }
@@ -120,16 +155,6 @@ class OrderSyncManager(
         outboxManager.enqueueEvent(event)
 
         // 4. If connected, attempt immediate drain
-        if (connectionManager.connectionStatus.value == ConnectionStatus.CONNECTED) {
-            drainPendingOutbox()
-        }
-    }
-
-    suspend fun sendOrderCancellation(orderId: String, reason: String = "") {
-        orderDao.updateOrderStatus(orderId, OrderStatus.CANCELLED)
-        val event = OrderEvent.createOrderCancelledEvent(orderId, reason)
-        outboxManager.enqueueEvent(event)
-
         if (connectionManager.connectionStatus.value == ConnectionStatus.CONNECTED) {
             drainPendingOutbox()
         }
@@ -344,5 +369,14 @@ class OrderSyncManager(
                 Log.w(TAG, "Vibration alert failed", e)
             }
         }
+    }
+
+    /**
+     * Completely disconnects all connections: shuts down POS WebSocket clients
+     * and severs any active Wi-Fi Direct (P2P) groups.
+     */
+    fun disconnectAll() {
+        connectionManager.disconnectClient()
+        p2pManager.removeGroup()
     }
 }

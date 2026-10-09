@@ -7,13 +7,20 @@
 [![Room](https://img.shields.io/badge/Room-2.6.1-orange.svg)](https://developer.android.com/training/data-storage/room)
 [![Koin](https://img.shields.io/badge/Koin-4.0.0-critical.svg)](https://insert-koin.io)
 [![WebSocket](https://img.shields.io/badge/WebSocket-Java--WebSocket_1.5.7-success.svg)](https://github.com/TooTallNate/Java-WebSocket)
+[![P2P Sync](https://img.shields.io/badge/P2P_Sync-Wi--Fi_Direct_%26_NSD-teal.svg)](#-dual-network-connectivity-modes)
+[![Authorship](https://img.shields.io/badge/Author-Dhivakar_(2026)-blue.svg)](AUTHORS.md)
+[![Source Integrity](https://img.shields.io/badge/Integrity-SHA--256_Verified-darkgreen.svg)](SOURCE_MANIFEST.json)
 
 An offline-first Android Point of Sale (POS) and **QuickKitchen Kitchen Display System (KDS)** packaged into **a SINGLE Android APK / Single Android project**.
 
-The same APK can be installed on two Android devices connected to the same Wi-Fi network:
-- **Device 1**: Operates in **POS Mode** (Billing Terminal, Inventory, Payments, PDF Receipts).
-- **Device 2**: Operates in **KDS Mode** (Kitchen Display System with live elapsed timers, order preparation stages, and audio/vibrate alerts).
-- **Local Network Sync**: Fully autonomous local communication via **Android NSD (Network Service Discovery)** and **real-time WebSocket** (no continuous polling, zero cloud/internet dependencies).
+The same APK can be installed on two Android devices:
+- **Device 1**: Operates in **POS Mode** (Billing Terminal, Inventory, Payments, Split Tender, Barcode Scanning, PDF Thermal Receipts).
+- **Device 2**: Operates in **KDS Mode** (Kitchen Display System with live elapsed timers, overdue preparation alerts, audio/haptic chimes, and stage management).
+- **Dual Local Sync Options**:
+  1. **Wi-Fi / Hotspot Mode**: Autonomous mDNS discovery via **Android NSD (`_quickbill._tcp`)** and persistent local **WebSocket** communication.
+  2. **Wi-Fi Direct (P2P) Mode**: Routerless direct device-to-device communication using **Android Wi-Fi P2P framework**, allowing seamless operation even in outdoor or router-free food truck environments.
+  3. **Zero Cloud Dependencies**: 100% local communication with zero recurring server bills or cloud outages.
+  4. **Durable Outbox Queue**: Room-backed event store (`pending_events`) with automatic FIFO replay and duplicate event prevention (`received_events`).
 
 ---
 
@@ -47,7 +54,6 @@ Download and install the pre-compiled APK directly on any Android Phone:
 |---|---|---|---|
 | **QuickBill POS & QuickKitchen KDS (Release Build)** | `arm64-v8a`, `armeabi-v7a` | **11.6 MB** | [📥 **Download app-release.apk**](apk/app-release.apk) |
 
-
 > **Single APK Dual-Mode**: Install the exact same APK on both devices. On first launch, select **POS** on Device 1 and **KDS** on Device 2. Switch roles anytime via *Settings → Change Device Mode*.
 
 ### Quick Installation:
@@ -69,16 +75,17 @@ Download and install the pre-compiled APK directly on any Android Phone:
 |  (Billing & Checkout Desk)  |                  |    (Kitchen Food Station)   |
 +-----------------------------+                  +-----------------------------+
               |                                                 |
-              | 1. Auto-discover via NSD (_quickbill._tcp)      | Advertises on Port 8887
+  DISCOVERY:  | Mode A: Auto-discover via NSD (_quickbill._tcp) | Mode A: Advertises on Port 8887
+              | Mode B: Wi-Fi Direct P2P Device Discovery       | Mode B: Advertises P2P Kitchen Group
               |------------------------------------------------>|
               |                                                 |
-              | 2. Persistent WebSocket Connection              | Listens for POS clients
+              | 2. Persistent Bidirectional WebSocket           | Listens for POS clients
               |<===============================================>|
               |                                                 |
   Checkout -> | 3. ORDER_CREATED event                          |
   Completed   |------------------------------------------------>| -> Sound & Vibration Alert
               |                                                 | -> Live Elapsed Timer Starts
-              | 4. ORDER_ACK (Event processed)                  |
+              | 4. ORDER_ACK (Event processed & deduplicated)   |
               |<------------------------------------------------|
               |                                                 |
               |                                                 | Chef taps "Start Preparing"
@@ -90,40 +97,59 @@ Download and install the pre-compiled APK directly on any Android Phone:
 +-----------------------------+                  +-----------------------------+
 ```
 
-### Step-by-Step 2-Device Demo Instructions:
-1. **Connect to the same Wi-Fi network** on both Android devices (or emulators).
-2. **Device 1 (Counter/POS)**:
-   - Launch QuickBill.
-   - On the first-launch screen, select **"POS Mode (Point of Sale)"**.
-   - Login with default credentials: `admin` / `1234`.
-3. **Device 2 (Kitchen)**:
-   - Launch QuickBill.
-   - On the first-launch screen, select **"KDS Mode (QuickKitchen Display)"**.
-   - The kitchen dashboard will start its WebSocket server on port `8887` and advertise via NSD. It displays its local Wi-Fi IP (e.g., `ws://192.168.1.15:8887`).
-4. **Auto-Connecting**:
-   - On Device 1 (POS), tap the **`KDS`** status chip on the top bar.
-   - The **Kitchen Display Dialog** will show the automatically discovered `QuickKitchen-KDS` unit. Tap **Connect** (or enter the IP manually if mDNS multicast is restricted by your router).
-   - The status chip turns **🟢 Connected to Kitchen**.
-5. **Placing & Fulfilling an Order**:
-   - On POS, add items to the cart and tap **Proceed to Payment**.
-   - Complete checkout (Cash/Card/UPI).
-   - **Immediately**, Device 2 (Kitchen) beeps/vibrates and displays a new order card with item details, veg/non-veg tags, and a live elapsed timer (`00:01`, `00:02`...).
-   - If cooking exceeds the warning threshold (default 5 min), the card turns **amber/red** with a prominent **⚠️ LATE** badge.
-   - Kitchen staff taps **[Start Preparing]** → changes status to `PREPARING` and notifies POS.
-   - Kitchen staff taps **[Mark Ready]** → changes status to `READY`.
-   - Kitchen staff taps **[Complete Order]** → moves order to history tab.
-6. **Testing Offline Resilience**:
-   - Disconnect Wi-Fi on POS.
-   - Generate 2-3 bills on POS. Notice the top bar chip shows `🔴 KDS Offline (3 queued)`.
-   - Re-enable Wi-Fi. The outbox automatically drains in FIFO sequence and sends all queued orders to KDS without data loss or duplicates!
-7. **Changing Device Mode**:
-   - On POS: Tap user avatar → **Change Device Mode** (or in the navigation drawer).
-   - On KDS: Tap settings icon (gear) in the top bar → **Change Device Mode**.
+### 📡 Dual Network Connectivity Modes
+
+QuickBill + QuickKitchen provides **two independent local connection mechanisms**:
+
+#### Mode 1: Wi-Fi / Hotspot (Standard LAN via NSD)
+- Both devices connect to the same Wi-Fi router or one phone turns on a Mobile Hotspot.
+- **KDS** starts an embedded WebSocket server and registers an Android Network Service Discovery (NSD) service under `_quickbill._tcp`.
+- **POS** scans the local network via `NsdManager`, resolves the KDS IP and port, and connects automatically with one tap.
+
+#### Mode 2: Wi-Fi Direct / P2P (No Router or Internet Needed)
+- Ideal for food trucks, pop-up stalls, and outdoor venues without a Wi-Fi router.
+- **KDS** advertises as a Wi-Fi Direct host / Group Owner.
+- **POS** discovers nearby kitchen devices via Android's `WifiP2pManager`.
+- Tapping **Connect** initiates a direct Wi-Fi Direct P2P pairing and routes the WebSocket stream directly over the peer-to-peer IP link (`192.168.49.1`).
+- The connection dialog provides live scanning, RSSI indicators, and an automated framework reset/disconnect action.
 
 ---
 
+### Step-by-Step 2-Device Demo Instructions:
 
-## Tech Stack & Architecture Decisions
+1. **Choose Connectivity**:
+   - **Option A (Wi-Fi/Hotspot)**: Connect both devices to the same Wi-Fi network (or host device hotspot).
+   - **Option B (Wi-Fi Direct)**: Turn on Wi-Fi and Location on both devices (no router required).
+2. **Device 1 (Counter / POS)**:
+   - Launch QuickBill.
+   - On the first-launch screen, select **"POS Mode (Point of Sale)"**.
+   - Login with default credentials: `admin` / `1234`.
+3. **Device 2 (Kitchen / KDS)**:
+   - Launch QuickBill.
+   - On the first-launch screen, select **"KDS Mode (QuickKitchen Display)"**.
+   - The kitchen dashboard starts its embedded server on port `8887` and displays its local endpoint.
+4. **Connecting the Devices**:
+   - On Device 1 (POS), tap the **`KDS`** status chip on the top bar.
+   - In the **Kitchen Connection Dialog**, choose your preferred tab:
+     - **Wi-Fi / Hotspot**: Tap **Connect** next to the discovered `QuickKitchen-KDS` unit (or enter IP manually).
+     - **Wi-Fi Direct (P2P)**: Tap **Scan Nearby Kitchens**, select the KDS device, and tap **Connect**.
+   - The status chip turns **🟢 Connected to Kitchen**.
+5. **Placing & Fulfilling an Order**:
+   - On POS, add products to cart and tap **Proceed to Payment**.
+   - Complete checkout (Cash/Card/UPI/Split).
+   - **Instantly**, Device 2 (Kitchen) plays an alert chime, vibrates, and adds the order ticket with item lines, customizations, and a live timer (`00:01`, `00:02`...).
+   - If food preparation exceeds the configured threshold (default 5 min), the card triggers an amber/red **⚠️ LATE** overdue indicator.
+   - Kitchen staff taps **[Start Preparing]** (`PREPARING`) → status syncs back to POS.
+   - Kitchen staff taps **[Mark Ready]** (`READY`) → signals food pickup.
+   - Kitchen staff taps **[Complete Order]** → archives ticket to the Kitchen History screen.
+6. **Testing Offline Resilience**:
+   - Disable Wi-Fi on POS.
+   - Complete 2 sales on POS. The top bar chip displays `🔴 KDS Offline (2 queued)`.
+   - Reconnect Wi-Fi / P2P. The Room outbox immediately drains in FIFO sequence, delivering all queued orders to KDS without data loss or duplicate tickets.
+
+---
+
+## 🏗️ Tech Stack & Directory Structure
 
 ```
 com.quickbill.pos/
@@ -132,11 +158,15 @@ com.quickbill.pos/
 ├── data/
 │   ├── local/
 │   │   ├── QuickBillDatabase.kt    # Room DB definition (entities, converters, versioning)
-│   │   ├── Converters.kt           # Room TypeConverters for Enums (PaymentMode, DiscountType, UserRole, BillStatus)
-│   │   ├── dao/                    # ProductDao, BillDao, BillItemDao, BillPaymentDao, HeldCartDao, UserDao
-│   │   └── entity/                 # ProductEntity, BillEntity, BillItemEntity, BillPaymentEntity, HeldCartEntity, UserEntity
-│   ├── model/                      # CartItem, CartSummary, PaymentSplit, DailyReportData, Enums
-│   ├── repository/                 # AuthRepository, BillingRepository, ProductRepository, ReportRepository, ThemeRepository
+│   │   ├── Converters.kt           # Room TypeConverters for Enums
+│   │   ├── dao/                    # ProductDao, BillDao, BillItemDao, BillPaymentDao, HeldCartDao,
+│   │   │                           # OrderDao, PendingEventDao, ReceivedEventDao, UserDao
+│   │   └── entity/                 # ProductEntity, BillEntity, BillItemEntity, BillPaymentEntity,
+│   │                               # HeldCartEntity, OrderEntity, OrderItemEntity, PendingEventEntity,
+│   │                               # ReceivedEventEntity, UserEntity
+│   ├── model/                      # CartItem, CartSummary, PaymentSplit, DailyReportData, Enums, KdsModels
+│   ├── repository/                 # AuthRepository, BillingRepository, ProductRepository,
+│   │                               # ReportRepository, ThemeRepository, DeviceModeRepository, KdsSettingsRepository
 │   ├── seed/                       # SampleDataSeeder (default cashiers & starter product catalog)
 │   └── util/
 │       ├── BillingCalculator.kt    # Pure Kotlin calculations (tax, discounts, splits, change due)
@@ -145,72 +175,78 @@ com.quickbill.pos/
 │       └── NetworkMonitor.kt       # ConnectivityManager Flow-based network observer
 ├── di/
 │   └── AppModule.kt                # Koin dependency injection module (DAOs, Repos, ViewModels)
+├── network/
+│   └── kds/
+│       ├── ConnectionManager.kt          # Unified network coordinator (Wi-Fi + Wi-Fi Direct switching)
+│       ├── NsdDiscoveryManager.kt        # Android NSD mDNS advertising and discovery
+│       ├── WifiP2pConnectionManager.kt   # Wi-Fi Direct P2P discovery, pairing, and group handling
+│       ├── WebSocketManager.kt           # Embedded Java-WebSocket server (KDS) & client (POS)
+│       ├── OutboxManager.kt              # Room-backed transactional outbox with auto-retry
+│       └── OrderSyncManager.kt           # Bidirectional event serializer, ACK handler & deduplicator
 ├── ui/
-│   ├── components/                 # Reusable UI widgets, dialogs (TopBar, NavDrawer, ReceiptDialog, PaymentDialog, etc.)
-│   ├── navigation/                 # Navigation Compose routes & Screen sealed class
+│   ├── components/                 # Reusable UI widgets, dialogs (TopBar, NavDrawer, KdsConnectionDialog, etc.)
+│   ├── navigation/                 # Navigation Compose routes & Screen sealed classes
 │   ├── screens/
 │   │   ├── auth/                   # Cashier login & PIN entry
 │   │   ├── billing/                # Terminal cart, barcode lookup, held carts
 │   │   ├── dashboard/              # Store analytics summary, quick actions, KPI cards
 │   │   ├── history/                # Searchable sales history, calendar range picker, refund
+│   │   ├── kitchen/                # KDS ticket grid, timers, audio/vibe alerts, history, settings
+│   │   ├── mode/                   # Initial device mode selector (POS vs KDS)
 │   │   ├── products/               # Product catalog, SKU duplicate guard, stock adjustments
 │   │   └── reports/                # Daily sales breakdown, top selling items, CSV export
 │   └── theme/                      # Material 3 color system, shapes, typography, motion specs
 ```
 
-### Why these libraries?
+### Verification & Tooling:
+```
+tools/
+├── apply_author_headers.py        # Automated header applicator for Kotlin, XML, and Gradle files
+├── generate_source_manifest.py    # Generates authoritative SHA-256 manifest (SOURCE_MANIFEST.json)
+├── verify_authorship.py           # Validates presence of author attribution marker
+└── verify_source_integrity.py     # Validates file integrity, detects modifications and deletions
 
-- **Jetpack Compose + Material 3**: Fully declarative UI with custom thermal-style receipt previews, adaptive layouts (phones & POS tablets), and fluid animations.
-- **Koin 4.0**: Lightweight dependency injection. Avoids heavy annotation-processing overhead (kapt) associated with Dagger/Hilt, keeping build times fast and test setup straightforward with `koinViewModel()`.
-- **Room 2.6.1 + KSP**: Offline-first local persistence. Relational integrity across bills, line items, and payments. Room `@Transaction` blocks are used for checkout and refund stock-restoration routines.
-- **Kotlinx Coroutines & Flow**: Reactive data streams from Room DAOs to ViewModel `StateFlow`s, collected in Compose via `collectAsState()`.
-- **CameraX 1.4.1 + Google ML Kit Barcode Scanning**: On-device SKU/barcode scanning through camera feed with an overlay reticle.
-- **Android `PdfDocument`**: Native receipt rendering without third-party PDF SDK bloat. Direct export via standard Android share sheet for printing or messaging.
-- **BigDecimal Math**: All currency, discount, and tax calculations are handled with `BigDecimal` and `RoundingMode.HALF_UP` to prevent floating-point paise rounding errors.
+docs/
+├── AUTHORSHIP_AND_INTEGRITY.md       # Technical explanation of attribution and tamper detection
+└── AUTHORSHIP_IMPLEMENTATION_REPORT.md# Complete 10-point implementation report
+```
 
 ---
 
-## Architectural & Business Logic Assumptions
+## 🛠️ Architectural & Business Logic Assumptions
 
 1. **Strict Offline-First**:
-   - The app does not require a remote server to complete sales, manage stock, or generate reports.
-   - A `NetworkMonitor` observer detects connectivity changes and displays an offline status indicator in the top bar, but terminal operations are never blocked by network state.
+   - The app does not require external internet or cloud backends to complete sales, manage stock, or generate reports.
+   - Terminal operations are never blocked by network state.
 2. **Atomic Inventory Transactions**:
-   - When a sale completes, item stocks are decremented in a single database transaction. If an item does not have enough stock, the checkout fails cleanly.
-   - Refunding or voiding a bill updates its status to `REFUNDED` and rolls back inventory stock for all associated line items inside a database `@Transaction`.
+   - Sales decrement item stock inside a database `@Transaction`. If stock is insufficient, checkout fails cleanly.
+   - Refunding a bill rolls back inventory stock for all associated line items inside a database transaction.
 3. **Non-Destructive Soft Deletes**:
-   - Deleting a product sets `isArchived = 1` rather than issuing a raw SQL `DELETE`. This preserves foreign key references and historical sales records for past bills and daily reports.
+   - Archiving products sets `isArchived = 1` rather than raw deletion, preserving past transaction auditability.
 4. **GST Tax Structure (Indian GST Standard)**:
-   - Each product holds a tax rate percentage (0%, 5%, 12%, 18%, or 28%).
-   - GST is split equally between **CGST** and **SGST** (e.g., 18% GST = 9% CGST + 9% SGST).
-   - Taxes are calculated against the net taxable subtotal (after line-item and apportioned bill discounts).
+   - Configurable GST brackets (0%, 5%, 12%, 18%, 28%).
+   - Taxes are split equally between **CGST** and **SGST** (50-50).
+   - Taxes are calculated against net taxable subtotals using `BigDecimal` and `RoundingMode.HALF_UP`.
 5. **Discount Guardrails**:
-   - Per-item and whole-bill discounts support both Percentage (%) and Flat (₹) values.
-   - Percentage discounts are clamped between 0% and 100%.
-   - Flat discounts cannot exceed the gross line-item or bill subtotal.
+   - Supports Percentage (%) and Flat (₹) discounts per-item and per-cart.
+   - Percentage discounts clamped between 0% and 100%. Flat discounts cannot exceed line/bill subtotals.
 6. **Cashier Sessions & Role Enforcement**:
-   - User sessions are persisted in encrypted/private `SharedPreferences`. When the app is closed and reopened, the logged-in session is restored until an explicit logout.
-   - Actions like clearing sales history are restricted to `UserRole.ADMIN`.
+   - Cashier PIN sessions persisted in private preferences until explicit logout.
+   - High-privilege actions (clearing sales history, editing product catalog) are restricted to `UserRole.ADMIN`.
 7. **Appearance Preferences**:
-   - Supports System Default, Light Mode, and Dark Mode.
-   - The user's selection is persisted in `SharedPreferences` and loaded before first frame composition.
+   - Supports System Default, Light Mode, and Dark Mode with custom contrast-safe palettes.
 
 ---
 
-## Developer Setup & Build Instructions
+## 💻 Developer Setup & Build Instructions
 
 ### Prerequisites
-- **Android Studio**: Ladybug (2024.2+) or Meerkat (recommended).
-- **JDK**: Version 17 or 21 (Android Studio bundled JBR works out of the box).
-- **Android SDK**:
-  - `compileSdk`: 35
-  - `minSdk`: 26 (Android 8.0 Oreo)
-  - `targetSdk`: 35
-  - Build-Tools: `35.0.0`
+- **Android Studio**: Ladybug (2024.2+) or newer.
+- **JDK**: Version 17 or 21 (bundled Android Studio JBR supported).
+- **Android SDK**: `compileSdk: 35`, `minSdk: 26`, `targetSdk: 35`.
+- **Python**: Version 3.10+ (for source integrity and attribution scripts).
 
 ### Build from Command Line
-
-Set your `JAVA_HOME` pointing to your JDK or Android Studio's bundled JBR:
 
 **Windows (PowerShell):**
 ```powershell
@@ -224,14 +260,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr"
 ./gradlew assembleDebug
 ```
 
-The compiled APK will be located at:
-```
-app/build/outputs/apk/debug/app-debug.apk
-```
-
 ### Running Unit Tests
-
-Run the test suite across tax calculations, inventory logic, edge cases, payments, and theme persistence:
 
 ```bash
 # Windows
@@ -241,218 +270,11 @@ Run the test suite across tax calculations, inventory logic, edge cases, payment
 ./gradlew testDebugUnitTest
 ```
 
-HTML test reports are generated at:
-```
-app/build/reports/tests/testDebugUnitTest/index.html
-```
-
-### Installing via ADB
-
-Connect an Android device with USB debugging enabled or start an emulator:
-
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.quickbill.pos/.MainActivity
-```
-
 ---
 
-## Pre-Seeded Default Accounts & Catalog
+## 🧪 Automated Test Coverage
 
-If the database is empty upon initial install, QuickBill seeds starter accounts and sample products:
-
-### Accounts
-| Role | Full Name | Username | PIN | Permissions |
-|---|---|---|---|---|
-| **Store Manager** | Store Manager | `admin` | `1234` | Full access (Billing, Catalog CRUD, History, Reports, Clear Sales) |
-| **Cashier 1** | Rahul Sharma | `cashier1` | `0000` | Billing, Product viewing, Standard sales history |
-| **Cashier 2** | Priya Patel | `cashier2` | `1111` | Billing, Product viewing, Standard sales history |
-
-*Note: The login screen contains 1-tap quick buttons to sign in with any demo account directly.*
-
-### Sample Catalog
-Includes 19 pre-configured grocery and retail items across categories (Groceries, Dairy, Beverages, Snacks, Personal Care, Household) with varying GST brackets (0% to 28%) and simulated stock levels (including low-stock and out-of-stock items for edge-case testing).
-
----
-
-## Screen Layouts & Functional Walkthrough
-
-### 1. Cashier Login (`LoginScreen.kt`)
-```
-+---------------------------------------------------+
-|               [QuickBill POS Logo]                |
-|               Sign In to Terminal                 |
-|                                                   |
-|   [ Quick Login:  (Admin)  (Cashier 1)  (Cashier 2) ]  |
-|                                                   |
-|             Selected: Rahul Sharma (Cashier)       |
-|                  PIN: [ * * * * ]                 |
-|                                                   |
-|                  [ 1 ] [ 2 ] [ 3 ]                |
-|                  [ 4 ] [ 5 ] [ 6 ]                |
-|                  [ 7 ] [ 8 ] [ 9 ]                |
-|                  [ C ] [ 0 ] [ ⌫ ]                |
-|                                                   |
-|                [ UNLOCK TERMINAL ]                |
-+---------------------------------------------------+
-```
-- 4-digit PIN authentication with haptic feedback.
-- Quick switch buttons for seamless cashier handovers.
-- Session persistence across app restarts.
-
-### 2. Dashboard (`DashboardScreen.kt`)
-```
-+---------------------------------------------------+
-| ☰ QuickBill POS            [● Online] [Theme] [Avatar] |
-+---------------------------------------------------+
-| Good Afternoon, Rahul Sharma                      |
-| [ Today's Sales: ₹14,250 ] [ Orders: 38 ]         |
-| [ Items Sold: 142       ] [ Low Stock: 3 ]        |
-|                                                   |
-| HOURLY SALES TREND                                |
-|  ₹ |    █                                         |
-|    |  █ █   █                                     |
-|    +--6A-9A-12P-3P-6P-9P------------------------- |
-|                                                   |
-| QUICK ACTIONS                                     |
-| [ New Sale ]  [ Add Product ]  [ Daily Report ]   |
-|                                                   |
-| TOP SELLING ITEMS                                 |
-| 1. Basmati Rice 1kg            24 sold  (₹2,880)  |
-| 2. Roasted Coffee Beans        18 sold  (₹5,760)  |
-+---------------------------------------------------+
-```
-- Real-time KPI summaries for today's volume.
-- Interactive hourly sales bar chart.
-- Low stock warning banner linking directly to filtered product inventory.
-
-### 3. POS Billing Terminal (`BillingScreen.kt`)
-```
-+---------------------------------------------------+
-| [🔍 Search product or SKU... ] [📷 Scan Barcode]   |
-| [All] [Groceries] [Dairy] [Beverages] [Snacks]    |
-+-----------------------------------+---------------+
-| Products Grid                     | Active Cart   |
-| +-------------------------------+ | Item 1   x2   |
-| | Amul Butter 500g      ₹275.00 | | Item 2   x1   |
-| | GST: 12% | Stock: 18 left     | | ------------- |
-| +-------------------------------+ | Subtotal:  ₹- |
-| | Greek Yogurt 100g      ₹60.00 | | Disc (%):  ₹- |
-| | [LOW STOCK] | Stock: 2 left   | | CGST:      ₹- |
-| +-------------------------------+ | SGST:      ₹- |
-| | Full Cream Milk 1L     ₹68.00 | | Grand Total₹- |
-| | [OUT OF STOCK - Disabled]     | | [Hold] [Pay]  |
-+-----------------------------------+---------------+
-```
-- Fast catalog filtering via text or camera barcode scanner.
-- Line item quantity increment/decrement, item discount configuration, and line total breakdown.
-- Cart holding functionality to park transactions and resume anytime from the top bar.
-
-### 4. Payment & Split Tender Modal (`PaymentDialog.kt`)
-```
-+---------------------------------------------------+
-| Total Due: ₹840.00                                |
-| Select Payment Method:                            |
-| [ Cash ]     [ Card ]     [ UPI ]     [ Split ]   |
-|                                                   |
-| [Cash Mode Selected]                              |
-| Tendered: [ ₹1000.00                            ] |
-| Quick Add:  [Exact]  [+50]  [+100]  [+500]        |
-|                                                   |
-| ------------------------------------------------- |
-| Total Paid: ₹1000.00     Change Due: ₹160.00      |
-|                                                   |
-| [ Cancel ]                 [ Complete Sale & Print ] |
-+---------------------------------------------------+
-```
-- Multi-tender support: Cash, Card, UPI, and Split tender.
-- Real-time change due calculator for cash payments.
-- Dynamic UPI QR display simulation and Card transaction reference capture.
-
-### 5. Thermal Receipt & PDF Export (`ReceiptDialog.kt`)
-```
-+---------------------------------------------------+
-|               QUICKBILL SUPERMARKET               |
-|            GSTIN: 29ABCDE1234F1Z5                 |
-| Bill #: QB-20261004-0012    Date: 04/10/2026      |
-| Cashier: Rahul Sharma                             |
-| ------------------------------------------------- |
-| ITEM               QTY     RATE      AMOUNT       |
-| Basmati Rice 1kg    2    120.00      240.00       |
-| Amul Butter 500g    1    275.00      275.00       |
-| ------------------------------------------------- |
-| Subtotal:                           ₹515.00       |
-| CGST:                                ₹22.50       |
-| SGST:                                ₹22.50       |
-| Grand Total:                        ₹560.00       |
-| ------------------------------------------------- |
-| Payment: CASH                        ₹600.00      |
-| Change Due:                           ₹40.00      |
-|                                                   |
-| [ Close ]         [ Share PDF ]       [ Print ]   |
-+---------------------------------------------------+
-```
-- Formatted 80mm thermal receipt preview.
-- Direct PDF rendering via Android `PdfDocument` with Android Share sheet intent.
-
-### 6. Product Management (`ProductsScreen.kt`)
-```
-+---------------------------------------------------+
-| Inventory (19 Products)           [+ New Product] |
-| [🔍 Search by name / SKU ]   [Filter: Low Stock]  |
-+---------------------------------------------------+
-| Product Item Card                                 |
-| Basmati Rice (1kg)            SKU: 890103000101   |
-| Category: Groceries           Price: ₹120.00      |
-| Tax: 5% GST                   Stock: 45 units     |
-| [ -1 ] [ +1 ] [ +10 ]         [ Edit ] [ Delete ] |
-+---------------------------------------------------+
-```
-- Full product CRUD with duplicate SKU validation dialog.
-- Fast inline stock steppers (`-1`, `+1`, `+10`).
-- Non-destructive soft deletion (`isArchived = 1`).
-
-### 7. Sales History & Refund Management (`SalesHistoryScreen.kt`)
-```
-+---------------------------------------------------+
-| Sales History                                     |
-| [🔍 Search Bill # or Customer ]                   |
-| Filter: [Today] [Yesterday] [Last 7 Days] [Custom]|
-+---------------------------------------------------+
-| Bill #QB-20261004-0003       ₹740.00  [COMPLETED] |
-| 04 Oct 2026, 02:15 PM • Cashier: Priya Patel     |
-| Items: 3 • Payment: UPI                           |
-| [ View Receipt ]                   [ Issue Refund]|
-+---------------------------------------------------+
-```
-- Comprehensive transaction history with custom calendar date-range filters.
-- Detailed receipt dialog inspection.
-- Refund execution with automatic Room `@Transaction` inventory restock.
-
-### 8. Daily Reports & Analytics (`DailyReportScreen.kt`)
-```
-+---------------------------------------------------+
-| Daily Performance Report             [Export CSV] |
-| Selected Date: [ 04 Oct 2026 ▾ ]                  |
-|                                                   |
-| Gross Sales: ₹18,450     Net Sales: ₹17,900       |
-| Total Bills: 42          Refunds: 1 (₹550)        |
-|                                                   |
-| PAYMENT BREAKDOWN                                 |
-| Cash: ₹9,200 (51%) | Card: ₹5,100 | UPI: ₹3,600   |
-|                                                   |
-| ALL ITEMS SOLD (Click to inspect all lines)       |
-+---------------------------------------------------+
-```
-- Full day-end reconciliation metrics.
-- Modal inspection of all items sold with quantities and generated revenues.
-- CSV export via standard Android share targets.
-
----
-
-## Automated Test Coverage
-
-The unit test suite validates core business logic independently from the Android UI lifecycle:
+The unit test suite validates core business logic independently from the Android lifecycle:
 
 | Test Class | Purpose | Key Scenarios Tested |
 |---|---|---|
@@ -461,9 +283,49 @@ The unit test suite validates core business logic independently from the Android
 | `InventoryUnitTest` | Stock integrity | Stock decrements on checkout; out-of-stock validation; low-stock threshold triggers; inventory restoration on bill refund. |
 | `EdgeCaseBillingUnitTest` | Input boundaries | 100% discount clamping; flat discount exceeding item price; empty cart subtotals; zero-tax grocery staples. |
 | `ThemeUnitTest` | Appearance state | Persistence of `ThemeMode.SYSTEM`, `ThemeMode.LIGHT`, `ThemeMode.DARK` and default fallback behavior. |
+| `BillingCalculatorTest` | Core billing arithmetic | Line item additions, multi-tier tax computations, discount applications, and grand total calculations. |
+| `KdsSyncUnitTest` | KDS sync & resilience | Outbox event serialization, payload validation, event deduplication, and stage progression. |
 
 ---
 
-## License
+## 🔒 Authorship, Attribution & Source Integrity
 
-This project is licensed under the MIT License.
+- **Original Author**: **Dhivakar** (Android Developer, 2026)
+- **Role & Contributions**: Full Android application development, single APK dual-mode architecture (POS + KDS), Kotlin & Jetpack Compose UI, Room database schema & transactional outbox, Wi-Fi Direct (P2P) and NSD local synchronization, billing & GST calculation engines, and unit test suites.
+- **Attribution Headers**: Every project-owned source file (`.kt`, `.kts`, `.xml`, build scripts) contains standardized authorship headers with the unique verification marker:
+  ```
+  QuickBill-QuickKitchen-Author: Dhivakar
+  ```
+- **Project Authorship Document**: Detailed feature breakdown is maintained in [AUTHORS.md](AUTHORS.md).
+- **Third-Party Acknowledgments**: Formal open-source license attribution for Google AndroidX, Jetpack Compose, Koin, Java-WebSocket, ZXing, and JUnit is documented in [NOTICE.md](NOTICE.md).
+- **Author Signature**: Summary signature file provided at [AUTHOR_SIGNATURE.txt](AUTHOR_SIGNATURE.txt).
+- **Source Integrity Manifest**: Authoritative cryptographic hashes for all project-owned source files are indexed in [SOURCE_MANIFEST.json](SOURCE_MANIFEST.json) using SHA-256 digests.
+- **Technical Documentation**: Detailed guide and implementation reports are available at [docs/AUTHORSHIP_AND_INTEGRITY.md](docs/AUTHORSHIP_AND_INTEGRITY.md) and [docs/AUTHORSHIP_IMPLEMENTATION_REPORT.md](docs/AUTHORSHIP_IMPLEMENTATION_REPORT.md).
+
+### Verifying Authorship & Source Integrity:
+
+1. **Verify Authorship Attribution**:
+   ```bash
+   python tools/verify_authorship.py
+   ```
+   *Scans all source files and verifies the presence of the authentic author marker.*
+
+2. **Verify Source File Integrity**:
+   ```bash
+   python tools/verify_source_integrity.py
+   ```
+   *Recalculates SHA-256 digests against `SOURCE_MANIFEST.json` to detect any unauthorized modifications or file deletions.*
+
+3. **Re-generate Manifest (upon intentional changes)**:
+   ```bash
+   python tools/generate_source_manifest.py
+   ```
+
+4. **Continuous Integration**:
+   - Automated GitHub Actions workflow configured in [`.github/workflows/verify-authorship.yml`](.github/workflows/verify-authorship.yml) to validate both authorship and integrity on every push and pull request.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See [NOTICE.md](NOTICE.md) for third-party library licenses.
