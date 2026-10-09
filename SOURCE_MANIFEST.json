@@ -16,8 +16,8 @@
   },
   {
     "path": "README.md",
-    "sha256": "ecfa24d82b2e4f3efb95c512238aa2a255f3d586c29edd8dd7848d625d6f3a46",
-    "size": 19709
+    "sha256": "8b610700b450e11961f6d21ddc32b9dfaf5279db9ab70229fc0ca31bcb5824ac",
+    "size": 21096
   },
   {
     "path": "app/build.gradle.kts",

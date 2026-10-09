@@ -26,6 +26,8 @@ The same APK can be installed on two Android devices:
 
 ## 📱 Application Screenshots
 
+### 🏪 QuickBill POS Terminal Screenshots
+
 | Cashier Login | POS Billing Terminal | Live Cart & Discounts |
 |:---:|:---:|:---:|
 | ![Login Screen](screenshots/01_login_screen.png) | ![Billing Screen](screenshots/02_billing_screen.png) | ![Cart View](screenshots/04_cart_view.png) |
@@ -37,6 +39,24 @@ The same APK can be installed on two Android devices:
 | Product Inventory Management | Sales History & Refunds | Daily Analytics & Top Items |
 |:---:|:---:|:---:|
 | ![Products Screen](screenshots/08_products_screen.png) | ![Sales History Screen](screenshots/09_sales_history_screen.png) | ![Daily Analytics Screen](screenshots/10_daily_analytics_screen.png) |
+
+### 🍳 QuickKitchen KDS (Kitchen Display System) Screenshots
+
+| Device Mode Selection | Waiting for Connection | Kitchen Display (Start / Pending) |
+|:---:|:---:|:---:|
+| ![Device Mode Selection](screenshots/quickkitchen/01_device_mode_selection.jpeg) | ![Waiting Connection Screen](screenshots/quickkitchen/02_waiting_connection_screen.jpeg) | ![QuickKitchen Screen Start](screenshots/quickkitchen/03_quickkitchen_screen_start.jpeg) |
+
+| Kitchen Display (Preparing) | Kitchen Display (Ready) | Order Details & Item Status |
+|:---:|:---:|:---:|
+| ![QuickKitchen Screen Preparing](screenshots/quickkitchen/04_quickkitchen_screen_preparing.jpeg) | ![QuickKitchen Screen Ready](screenshots/quickkitchen/05_quickkitchen_screen_ready.jpeg) | ![Order Details Screen](screenshots/quickkitchen/06_order_details_screen.jpeg) |
+
+| Order Timeline & History | Bill Receipt & Verification | Kitchen Settings & Customization |
+|:---:|:---:|:---:|
+| ![Order Timeline Screen](screenshots/quickkitchen/07_order_timeline_screen.jpeg) | ![Order Receipt Screen](screenshots/quickkitchen/08_order_receipt_screen.jpeg) | ![QuickKitchen Settings Screen](screenshots/quickkitchen/09_quickkitchen_settings_screen.jpeg) |
+
+| Live Connection Status & Diagnostics |
+|:---:|
+| ![Connection Details Screen](screenshots/quickkitchen/10_connection_details_screen.jpeg) |
 
 ---
 
