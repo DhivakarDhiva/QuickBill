@@ -54,10 +54,6 @@ The same APK can be installed on two Android devices:
 |:---:|:---:|:---:|
 | ![Order Timeline Screen](screenshots/quickkitchen/07_order_timeline_screen.jpeg) | ![Order Receipt Screen](screenshots/quickkitchen/08_order_receipt_screen.jpeg) | ![QuickKitchen Settings Screen](screenshots/quickkitchen/09_quickkitchen_settings_screen.jpeg) |
 
-| Live Connection Status & Diagnostics |
-|:---:|
-| ![Connection Details Screen](screenshots/quickkitchen/10_connection_details_screen.jpeg) |
-
 ---
 
 ## 🎥 App Demos & Screen Recordings
@@ -66,9 +62,7 @@ The same APK can be installed on two Android devices:
 https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
 
 ### 🍳 QuickKitchen KDS Screen Recording
-https://github.com/DhivakarDhiva/QuickBill/raw/main/demo/QuickKitchen_Screenrecord.mp4
-
-> 💡 **Direct File Link**: [▶️ View / Download `QuickKitchen_Screenrecord.mp4`](demo/QuickKitchen_Screenrecord.mp4) (Demonstrates real-time order lifecycle from Pending ➔ Preparing ➔ Ready, item toggles, order details, receipt viewing, and dual-mode connectivity).
+https://github.com/user-attachments/assets/1e0c1dcb-c2df-4696-831f-f1dde7757161
 
 ---
 
