@@ -60,9 +60,15 @@ The same APK can be installed on two Android devices:
 
 ---
 
-## 🎥 App Demo
+## 🎥 App Demos & Screen Recordings
 
+### 🛒 QuickBill POS Demo Walkthrough
 https://github.com/user-attachments/assets/bc846318-5078-4a18-9535-238c53512a0a
+
+### 🍳 QuickKitchen KDS Screen Recording
+https://github.com/DhivakarDhiva/QuickBill/raw/main/demo/QuickKitchen_Screenrecord.mp4
+
+> 💡 **Direct File Link**: [▶️ View / Download `QuickKitchen_Screenrecord.mp4`](demo/QuickKitchen_Screenrecord.mp4) (Demonstrates real-time order lifecycle from Pending ➔ Preparing ➔ Ready, item toggles, order details, receipt viewing, and dual-mode connectivity).
 
 ---
 

@@ -40,6 +40,9 @@ IGNORED_EXTENSIONS = {
     ".ico",
     ".class",
     ".bin",
+    ".mp4",
+    ".mov",
+    ".m4v",
 }
 
 IGNORED_FILES = {

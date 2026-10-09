@@ -16,8 +16,8 @@
   },
   {
     "path": "README.md",
-    "sha256": "8b610700b450e11961f6d21ddc32b9dfaf5279db9ab70229fc0ca31bcb5824ac",
-    "size": 21096
+    "sha256": "4192942363a9a0e27cf31feb18f8e025d8818bddeed7e503257e14e60cebe75f",
+    "size": 21564
   },
   {
     "path": "app/build.gradle.kts",
@@ -561,8 +561,8 @@
   },
   {
     "path": "tools/generate_source_manifest.py",
-    "sha256": "3c83b0f6d65b3ea0055d8791466b9221e0514a36ac57dbca212cbd976bbe2128",
-    "size": 3221
+    "sha256": "3234072466e8dda1971cd07a91ae39389856505f7c692156787cd8f5098859b5",
+    "size": 3257
   },
   {
     "path": "tools/verify_authorship.py",
